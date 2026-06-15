@@ -344,7 +344,7 @@
                 <div class="space-y-3">
                     <h1 class="text-3xl font-black text-slate-900 tracking-tight">Тест успешно пройден!</h1>
                     <p class="text-slate-500 text-base max-w-md mx-auto leading-relaxed">
-                        Ваша анкета и ответы на вопросы успешно зафиксированы. HR-отдел уже получил автоматическое уведомление и детальную оценку ваших компетенций.
+                        Ваша анкеты и ответы на вопросы успешно зафиксированы. HR-отдел уже получил автоматическое уведомление и детальную оценку ваших компетенций.
                     </p>
                     <p class="text-xs text-slate-400 max-w-sm mx-auto bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-medium font-mono">
                         Результаты отправлены в закрытую базу данных компании.
@@ -980,6 +980,9 @@
                     campaigns = list;
                     localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
                 }
+                
+                // Переинициализируем параметры теста, чтобы соискатель мгновенно подхватил данные из облака
+                try { initCampaignConfiguration(); } catch(e) {}
                 renderAdminDashboard();
             }, (error) => {
                 console.error("Отказ в доступе к кампаниям:", error);
@@ -1292,16 +1295,19 @@
             params.set('limit', c.questionLimit || 10);
             params.set('comps', c.competencies.join(','));
 
-            // Если у теста есть локальные вопросы, кодируем их. Иначе берём из глобального пула
-            const targetQs = (c.localQuestions && c.localQuestions.length > 0)
-                ? c.localQuestions 
-                : questions.filter(q => c.competencies.includes(q.competency));
+            // ИСПРАВЛЕНИЕ ОШИБКИ HTTP 414 (URI Too Long):
+            // Кодируем в ссылку только УНИКАЛЬНЫЕ локальные вопросы (если они созданы).
+            // Если тест использует общую базу вопросов по выбранным темам, мы НЕ засоряем URL.
+            // При прохождении кандидат автоматически подгрузит их локально или из Firebase.
+            const targetQs = (c.localQuestions && c.localQuestions.length > 0) ? c.localQuestions : [];
 
-            try {
-                const serializedQs = btoa(unescape(encodeURIComponent(JSON.stringify(targetQs))));
-                params.set('qs', serializedQs);
-            } catch (err) {
-                console.error("Ошибка кодирования вопросов в URL:", err);
+            if (targetQs.length > 0) {
+                try {
+                    const serializedQs = btoa(unescape(encodeURIComponent(JSON.stringify(targetQs))));
+                    params.set('qs', serializedQs);
+                } catch (err) {
+                    console.error("Ошибка кодирования вопросов в URL:", err);
+                }
             }
 
             const baseUrl = window.location.href.split('?')[0];
@@ -2539,7 +2545,7 @@
             }
         }
 
-        // Привязка событий к window для inline-вызовов из DOM
+        // Привязка событий к window для inline-вызовов из DOM (ОБЯЗАТЕЛЬНО ДЛЯ TYPE="MODULE")
         window.registerLogoClick = registerLogoClick;
         window.switchView = switchView;
         window.switchAdminTab = switchAdminTab;
@@ -2552,6 +2558,7 @@
         window.resetTestingFlow = resetTestingFlow;
         window.exportCandidatesToExcel = exportCandidatesToExcel;
         window.openTestWizard = openTestWizard;
+        window.editCampaignWizard = editCampaignWizard; // ИСПРАВЛЕННЫЙ ЭКСПОРТ (теперь настройки открываются)
         window.downloadExcelTemplate = downloadExcelTemplate;
         window.handleExcelUpload = handleExcelUpload;
         window.handleManualQuestionAdd = handleManualQuestionAdd;
