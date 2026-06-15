@@ -1,0 +1,2575 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тестограф | Платформа Оценки Компетенций</title>
+    
+    <!-- Динамический Favicon в современном стиле Поехали с нами -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2228%22 fill=%22%23ea6a00%22/><path d=%22M 15 75 Q 50 35 85 75%22 stroke=%22white%22 stroke-width=%226%22 fill=%22none%22/><path d=%22M 62 70 Q 72 45 68 30%22 stroke=%22white%22 stroke-width=%225%22 fill=%22none%22/></svg>">
+    
+    <!-- Google Fonts: Inter для текстов & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js для красивой визуализации радарных карт навыков -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- SheetJS (xlsx) для интеграции с Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            orange: '#ea6a00', // Премиальный оранжевый ПСН
+                            dark: '#111111',
+                            gray: '#222222',
+                            accent: '#4F46E5',
+                            lightGray: '#F8FAFC',
+                        }
+                    },
+                    boxShadow: {
+                        'neon-orange': '0 0 15px rgba(234, 106, 0, 0.3)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8FAFC;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ea6a00;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        .checkmark-kick {
+            transform-origin: 50% 50%;
+            animation: scale .3s ease-in-out .3s both;
+        }
+        @keyframes scale {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-brand-orange selection:text-white">
+
+    <!-- НАВИГАЦИОННАЯ ПАНЕЛЬ -->
+    <header class="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Кликните 5 раз по логотипу для авторизации в админке -->
+            <div class="flex items-center space-x-3 cursor-pointer select-none" id="brand-logo" onclick="registerLogoClick()" title="Кликните 5 раз для входа администратора">
+                <div class="flex items-center space-x-2.5 bg-gradient-to-r from-orange-50 to-orange-100/40 px-3.5 py-2 rounded-xl border border-orange-200/50 hover:border-brand-orange/40 active:scale-95 transition-all duration-150 shadow-sm">
+                    <span class="text-brand-orange text-lg flex items-center justify-center">
+                        <i class="fa-solid fa-umbrella-beach"></i>
+                    </span>
+                    <div class="flex flex-col">
+                        <span class="text-[11px] font-black tracking-wider text-slate-800 uppercase leading-none">ПОЕХАЛИ</span>
+                        <span class="text-[9px] font-bold tracking-widest text-brand-orange uppercase mt-0.5 leading-none">С НАМИ!</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Индикатор облачной базы Firebase -->
+            <div id="firebase-cloud-status" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold">
+                <!-- Обновляется динамически из JS -->
+            </div>
+
+            <!-- Навигационные кнопки -->
+            <div class="flex items-center space-x-2">
+                <button id="nav-candidate-btn" onclick="switchView('candidate-reg')" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-white text-slate-900 shadow-sm flex items-center gap-2 border border-slate-200">
+                    <i class="fa-solid fa-user-tie text-brand-orange"></i> Кандидат
+                </button>
+                <button id="nav-admin-btn" onclick="switchView('admin-panel')" class="hidden px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-600 hover:text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-gauge"></i> Панель управления
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- МОДАЛЬНОЕ ОКНО АВТОРИЗАЦИИ АДМИНИСТРАТОРА -->
+    <div id="admin-login-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 border border-slate-200 shadow-2xl relative text-center">
+            <div class="w-12 h-12 rounded-2xl bg-brand-orange text-white flex items-center justify-center font-black text-xl mx-auto shadow-md">T</div>
+            <h3 class="text-lg font-bold text-slate-900 mt-3">Вход для администратора</h3>
+            <p class="text-xs text-slate-500 mt-1">Введите секретный пароль для доступа к управлению тестами и базе результатов.</p>
+            <p class="text-[10px] text-slate-400 bg-slate-50 py-1.5 rounded-md font-mono mt-2">Пароль по умолчанию: <span class="font-bold text-brand-orange">admin2026</span></p>
+            <form onsubmit="verifyAdminPasscode(event)" class="mt-6 space-y-4">
+                <input type="password" id="admin-passcode-input" required placeholder="••••••••" class="w-full text-center tracking-widest text-lg py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none">
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeAdminLoginModal()" class="w-1/2 py-3 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 transition">Отмена</button>
+                    <button type="submit" class="w-1/2 py-3 bg-brand-dark hover:bg-black text-brand-orange rounded-xl text-xs font-bold transition">Подтвердить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ТОАСТ КОНТЕЙНЕР ДЛЯ УВЕДОМЛЕНИЙ -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ОСНОВНОЙ КОНТЕНТ -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- ==================== ЭКРАН 1: РЕГИСТРАЦИЯ КАНДИДАТА ==================== -->
+        <section id="view-candidate-reg" class="view-section max-w-2xl mx-auto space-y-8">
+            <div class="bg-gradient-to-tr from-brand-dark to-slate-800 text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-brand-orange/10 rounded-full blur-2xl"></div>
+                <span id="camp-badge-element" class="bg-brand-orange text-white font-bold text-xs uppercase px-3 py-1 rounded-full tracking-wider shadow-sm">Интеллектуальная оценка</span>
+                
+                <div class="mt-4" id="campaign-title-badge-container">
+                    <span class="text-xs font-semibold text-brand-orange uppercase tracking-widest block mb-1">Режим: Скрининг дефицитов</span>
+                    <h1 id="camp-title-element" class="text-3xl font-black leading-tight">Узнайте свои реальные компетенции</h1>
+                </div>
+                
+                <p id="camp-subtitle-text" class="text-slate-300 mt-2 text-sm leading-relaxed">
+                    Наш алгоритм точечно выявляет пробелы в знаниях. Это избавляет от прохождения долгих общих курсов на 10 часов, позволяя развивать дефицитные зоны.
+                </p>
+                
+                <div class="flex items-center space-x-6 mt-6 pt-6 border-t border-white/10 text-xs text-slate-300">
+                    <span class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-brand-orange text-sm"></i> <span id="camp-duration-text">10 минут</span></span>
+                    <span class="flex items-center gap-1.5"><i class="fa-regular fa-circle-question text-brand-orange text-sm"></i> <span id="camp-questions-count">12</span> вопросов</span>
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-brand-orange text-sm"></i> Персональный отчет HR</span>
+                </div>
+            </div>
+
+            <!-- Регистрационная анкета соискателя -->
+            <div class="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-sm space-y-6">
+                <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-brand-orange rounded-full"></span> Входные данные кандидата
+                </h2>
+                
+                <form id="candidate-form" onsubmit="startTest(event)" class="space-y-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">ФИО Кандидата</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                <i class="fa-regular fa-user text-sm"></i>
+                            </span>
+                            <input type="text" id="cand-name" required placeholder="Константинопольский Константин" 
+                                class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-orange/30 focus:border-brand-orange transition-all outline-none font-medium text-slate-800">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 tracking-wider mb-2 uppercase">Опыт работы в сфере туризма/продаж</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                <i class="fa-solid fa-briefcase text-sm"></i>
+                            </span>
+                            <select id="cand-exp-select" required 
+                                class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-orange/30 focus:border-brand-orange transition-all outline-none font-medium text-slate-800 appearance-none">
+                                <option value="" disabled selected>Выберите опыт работы</option>
+                                <option value="Нет опыта">Нет опыта</option>
+                                <option value="До 1 года">До 1 года</option>
+                                <option value="1–3 года">1–3 года</option>
+                                <option value="3–5 лет">3–5 лет</option>
+                                <option value="5–10 лет">5–10 лет</option>
+                                <option value="Более 10 лет">Более 10 лет</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 tracking-wider mb-2 uppercase">Среднее количество заявок в месяц</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                <i class="fa-solid fa-calculator text-sm"></i>
+                            </span>
+                            <input type="number" id="cand-leads-count" required min="0" placeholder="Укажите числом (например: 45)" 
+                                class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-orange/30 focus:border-brand-orange transition-all outline-none font-medium text-slate-800">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 tracking-wider mb-2 uppercase">Есть ли сотрудники?</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="border border-slate-200 bg-slate-50 p-3 rounded-xl cursor-pointer text-center block hover:border-brand-orange transition">
+                                    <input type="radio" name="cand-has-staff" value="Нет" required checked onclick="toggleStaffCount(false)" class="sr-only peer">
+                                    <span class="text-xs font-bold text-slate-600 peer-checked:text-brand-orange block">Нет</span>
+                                </label>
+                                <label class="border border-slate-200 bg-slate-50 p-3 rounded-xl cursor-pointer text-center block hover:border-brand-orange transition">
+                                    <input type="radio" name="cand-has-staff" value="Да" onclick="toggleStaffCount(true)" class="sr-only peer">
+                                    <span class="text-xs font-bold text-slate-600 peer-checked:text-brand-orange block">Да</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="staff-count-container" class="hidden">
+                            <label class="block text-xs font-semibold text-slate-500 tracking-wider mb-2 uppercase">Количество менеджеров</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                    <i class="fa-solid fa-users-gear text-sm"></i>
+                                </span>
+                                <select id="cand-staff-count" 
+                                    class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-orange/30 focus:border-brand-orange transition-all outline-none font-medium text-slate-800 appearance-none">
+                                    <option value="" disabled selected>Выберите кол-во</option>
+                                    <option value="1–2">1–2</option>
+                                    <option value="3–5">3–5</option>
+                                    <option value="6–10">6–10</option>
+                                    <option value="Более 10">Более 10</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 tracking-wider mb-2 uppercase">Какие направления продаете регулярно? (несколько вариантов)</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-brand-orange transition">
+                                <input type="checkbox" name="cand-dest" value="Турция" class="rounded text-brand-orange focus:ring-brand-orange">
+                                <span class="text-xs font-semibold text-slate-600">Турция</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-brand-orange transition">
+                                <input type="checkbox" name="cand-dest" value="Египет" class="rounded text-brand-orange focus:ring-brand-orange">
+                                <span class="text-xs font-semibold text-slate-600">Египет</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-brand-orange transition">
+                                <input type="checkbox" name="cand-dest" value="ОАЭ" class="rounded text-brand-orange focus:ring-brand-orange">
+                                <span class="text-xs font-semibold text-slate-600">ОАЭ</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-brand-orange transition">
+                                <input type="checkbox" name="cand-dest" value="Таиланд" class="rounded text-brand-orange focus:ring-brand-orange">
+                                <span class="text-xs font-semibold text-slate-600">Таиланд</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-brand-orange transition">
+                                <input type="checkbox" name="cand-dest" value="Вьетнам" class="rounded text-brand-orange focus:ring-brand-orange">
+                                <span class="text-xs font-semibold text-slate-600">Вьетнам</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-brand-orange transition">
+                                <input type="checkbox" name="cand-dest" value="Китай" class="rounded text-brand-orange focus:ring-brand-orange">
+                                <span class="text-xs font-semibold text-slate-600">Китай</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-brand-orange transition">
+                                <input type="checkbox" name="cand-dest" value="Европа" class="rounded text-brand-orange focus:ring-brand-orange">
+                                <span class="text-xs font-semibold text-slate-600">Европа</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-brand-orange transition">
+                                <input type="checkbox" name="cand-dest" value="Другое" class="rounded text-brand-orange focus:ring-brand-orange">
+                                <span class="text-xs font-semibold text-slate-600">Другое</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-slate-900 text-brand-orange hover:bg-black hover:text-white transition-all duration-300 py-4 px-6 rounded-xl font-bold text-base shadow-lg shadow-brand-orange/10 flex items-center justify-center gap-2 group border border-brand-orange/20">
+                        Перейти к тестированию
+                        <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ==================== ЭКРАН 2: ИНТЕРФЕЙС ТЕСТИРОВАНИЯ ==================== -->
+        <section id="view-test-interface" class="view-section hidden max-w-2xl mx-auto space-y-6">
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-mono font-bold text-sm text-slate-700 border border-slate-200" id="test-counter">0/0</span>
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Ваш прогресс</span>
+                        <span class="text-xs font-extrabold text-brand-orange uppercase" id="current-competency-badge">Загрузка...</span>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Прошло времени</span>
+                    <span class="font-mono text-sm font-black text-slate-800" id="test-timer">00:00</span>
+                </div>
+            </div>
+
+            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden shadow-inner">
+                <div id="test-progress-bar" class="bg-brand-orange h-full transition-all duration-300 w-0"></div>
+            </div>
+
+            <div id="question-card-container" class="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-sm min-h-[350px] flex flex-col justify-between">
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-orange-50 text-brand-orange text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider border border-orange-100" id="question-comp-tag">Загрузка</span>
+                    </div>
+                    <h3 class="text-xl md:text-2xl font-bold text-slate-900 leading-snug" id="question-text">Загрузка вопроса...</h3>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3.5 my-6" id="answer-options-grid"></div>
+
+                <div class="flex items-center justify-between pt-6 border-t border-slate-100">
+                    <button onclick="previousQuestion()" id="prev-question-btn" class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition font-semibold text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-left"></i> Назад
+                    </button>
+                    <button onclick="nextQuestion()" id="next-question-btn" disabled class="px-6 py-3 rounded-xl bg-slate-900 text-white disabled:bg-slate-100 disabled:text-slate-400 hover:bg-black hover:text-brand-orange transition font-bold text-sm flex items-center gap-2 border border-transparent hover:border-brand-orange/30">
+                        Ответить & Дальше <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== ЭКРАН 3: БАННЕР БЛАГОДАРНОСТИ ==================== -->
+        <section id="view-results" class="view-section hidden max-w-2xl mx-auto py-12">
+            <div class="bg-white rounded-3xl p-10 border border-slate-200 shadow-xl text-center space-y-8">
+                <div class="mx-auto w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center text-brand-orange shadow-inner border border-orange-100">
+                    <svg class="w-12 h-12 checkmark-kick" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+
+                <div class="space-y-3">
+                    <h1 class="text-3xl font-black text-slate-900 tracking-tight">Тест успешно пройден!</h1>
+                    <p class="text-slate-500 text-base max-w-md mx-auto leading-relaxed">
+                        Ваша анкета и ответы на вопросы успешно зафиксированы. HR-отдел уже получил автоматическое уведомление и детальную оценку ваших компетенций.
+                    </p>
+                    <p class="text-xs text-slate-400 max-w-sm mx-auto bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-medium font-mono">
+                        Результаты отправлены в закрытую базу данных компании.
+                    </p>
+                </div>
+
+                <div class="p-5 bg-gradient-to-r from-orange-50/50 to-orange-50/10 rounded-2xl border border-orange-100 flex items-start text-left gap-3.5 max-w-md mx-auto">
+                    <div class="text-brand-orange mt-0.5"><i class="fa-solid fa-bolt-lightning text-lg"></i></div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wide">Методология Точечной Оценки</h4>
+                        <p class="text-[11px] text-slate-600 mt-1 leading-normal">
+                            По результатам вашего профиля будут подобраны персональные обучающие треки. Вам не придется тратить время на объемные курсы по 10 часов — вы разберете только проблемные темы.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100">
+                    <button onclick="resetTestingFlow()" class="bg-slate-900 text-brand-orange hover:bg-black hover:text-white px-8 py-3.5 rounded-xl font-bold text-sm transition shadow-lg border border-brand-orange/15">
+                        <i class="fa-solid fa-rotate-left mr-1.5"></i> Вернуться на главную
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== ЭКРАН 4: ПАНЕЛЬ УПРАВЛЕНИЯ (АДМИНКА) ==================== -->
+        <section id="view-admin-panel" class="view-section hidden space-y-8">
+            <!-- Статистика -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Всего тестирований</span>
+                        <span class="text-3xl font-extrabold text-slate-900 mt-1 block" id="admin-stat-total">0</span>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 text-lg">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Средний балл по системе</span>
+                        <span class="text-3xl font-extrabold text-brand-orange mt-1 block" id="admin-stat-avg">0%</span>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-brand-orange text-lg">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Активно вопросов</span>
+                        <span class="text-3xl font-extrabold text-slate-900 mt-1 block" id="admin-stat-questions">0</span>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 text-lg">
+                        <i class="fa-regular fa-lightbulb"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Главная зона дефицита</span>
+                        <span class="text-sm font-extrabold text-rose-600 mt-2 block truncate" id="admin-stat-gap">Нет данных</span>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 text-lg">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Верхний Хеддер Управления -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
+                <div>
+                    <h2 class="text-xl font-extrabold text-slate-950">Панель Администратора</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Конструируйте ссылки, импортируйте вопросы и просматривайте детальную аналитику кандидатов</p>
+                </div>
+                <div class="flex flex-wrap gap-2.5">
+                    <button onclick="openTestWizard()" class="bg-brand-orange text-white hover:bg-orange-600 shadow-lg shadow-orange-500/10 transition px-5 py-3 rounded-xl text-sm font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Создать тест (Конструктор)
+                    </button>
+                    <button onclick="downloadExcelTemplate()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs py-3 px-4 rounded-xl flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-download"></i> Шаблон Excel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Интеграция с Firebase -->
+            <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                            <i class="fa-solid fa-database text-brand-orange"></i> Настройки синхронизации Firebase Cloud
+                        </h3>
+                        <p class="text-xs text-slate-400">Подключите собственную базу данных для моментальной синхронизации тестов между кандидатами и HR-панелью</p>
+                    </div>
+                    <span id="firebase-active-badge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">Локальный режим (LocalStorage)</span>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+                    <div class="lg:col-span-9">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Вставьте Firebase Web Configuration JSON</label>
+                        <textarea id="firebase-config-input" rows="2" placeholder='{"apiKey": "AIzaSy...", "authDomain": "...", "projectId": "...", "storageBucket": "...", "messagingSenderId": "...", "appId": "..."}' class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-[11px] focus:ring-1 focus:ring-brand-orange outline-none resize-none"></textarea>
+                    </div>
+                    <div class="lg:col-span-3 flex gap-2">
+                        <button onclick="saveFirebaseConfig()" class="w-full bg-slate-900 hover:bg-black text-brand-orange font-bold text-xs py-3 rounded-xl transition border border-brand-orange/20">
+                            Подключить облако
+                        </button>
+                        <button onclick="clearFirebaseConfig()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs px-3 rounded-xl transition border border-slate-200" title="Сбросить подключение">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладки управления -->
+            <div class="space-y-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 gap-4">
+                    <div class="flex flex-wrap space-x-6">
+                        <button onclick="switchAdminTab('candidates')" id="admin-tab-candidates" class="py-2.5 font-bold text-sm text-slate-900 border-b-2 border-slate-900 transition-all">
+                            Результаты кандидатов (<span id="cand-count-badge">0</span>)
+                        </button>
+                        <button onclick="switchAdminTab('campaigns')" id="admin-tab-campaigns" class="py-2.5 font-bold text-sm text-slate-500 hover:text-slate-900 transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-boxes-stacked text-brand-orange"></i> Контейнеры тестов (<span id="camp-count-badge">0</span>)
+                        </button>
+                        <button onclick="switchAdminTab('questions')" id="admin-tab-questions" class="py-2.5 font-bold text-sm text-slate-500 hover:text-slate-900 transition-all">
+                            Глобальная база вопросов (<span id="quest-count-badge">0</span>)
+                        </button>
+                    </div>
+                    <button id="export-candidates-btn" onclick="exportCandidatesToExcel()" class="bg-emerald-600 text-white hover:bg-emerald-700 transition text-xs font-bold py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-file-export"></i> Экспорт всех в Excel
+                    </button>
+                </div>
+
+                <!-- Панель кандидатов и результатов -->
+                <div id="admin-content-candidates" class="admin-tab-panel space-y-4">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <span class="font-bold text-slate-700 whitespace-nowrap"><i class="fa-solid fa-filter text-slate-400"></i> Фильтр по тесту:</span>
+                            <select id="admin-filter-campaign-select" onchange="renderCandidatesListTab()" class="p-2 bg-white border border-slate-200 rounded-lg outline-none font-semibold text-slate-800 w-full sm:w-64">
+                                <option value="all">Все результаты (без фильтрации)</option>
+                                <option value="default_all">Общая оценка (Все компетенции)</option>
+                            </select>
+                        </div>
+                        <span class="text-xs text-slate-400 font-medium">Результаты кандидатов защищены и не теряются при изменении вопросов</span>
+                    </div>
+
+                    <div class="overflow-x-auto bg-white rounded-3xl border border-slate-200/80 shadow-sm">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50/70 border-b border-slate-100">
+                                    <th class="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Кандидат / Профиль</th>
+                                    <th class="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Балл %</th>
+                                    <th class="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Оценки по компетенциям</th>
+                                    <th class="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Дата</th>
+                                    <th class="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-candidates-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Панель Контейнеров Тестов -->
+                <div id="admin-content-campaigns" class="admin-tab-panel hidden space-y-6">
+                    <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex justify-between items-center flex-wrap gap-2">
+                            <div>
+                                <h3 class="font-bold text-slate-900 text-base">Активные контейнеры тестов</h3>
+                                <p class="text-xs text-slate-400">Каждый тест хранит свои собственные настройки, лимиты и вопросы</p>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                                        <th class="pb-3">Конфигурация и метаданные</th>
+                                        <th class="pb-3">Темы и локальные вопросы</th>
+                                        <th class="pb-3 text-right">Управление контейнером</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-campaigns-tbody" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Панель Глобальной Базы Вопросов -->
+                <div id="admin-content-questions" class="admin-tab-panel hidden space-y-4">
+                    <!-- Загрузка Excel в глобальную базу -->
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="space-y-1">
+                            <h4 class="font-bold text-slate-800 text-sm">Загрузить вопросы в общую глобальную базу</h4>
+                            <p class="text-xs text-slate-500">При заполнении пошагового конструктора тестов вы сможете заимствовать вопросы из этой базы.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="file" id="global-excel-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event, 'global')">
+                            <button onclick="document.getElementById('global-excel-input').click()" class="bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-file-excel"></i> ...
+                            </button>
+                            <button onclick="resetToDefaultQuestions()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs py-2.5 px-4 rounded-xl transition">
+                                Сбросить на стандартные
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Конструктор быстрого добавления вручную -->
+                    <form onsubmit="handleManualQuestionAdd(event)" class="bg-slate-100/70 p-5 rounded-2xl border border-slate-200/80 grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div class="md:col-span-12">
+                            <h4 class="text-xs font-bold text-slate-600 uppercase tracking-wider">Создать один вопрос вручную</h4>
+                        </div>
+                        <div class="md:col-span-3">
+                            <input type="text" id="mq-comp" required placeholder="Компетенция (напр. Турция)" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm">
+                        </div>
+                        <div class="md:col-span-9">
+                            <input type="text" id="mq-text" required placeholder="Текст вопроса" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm">
+                        </div>
+                        <div class="md:col-span-2">
+                            <input type="text" id="mq-optA" required placeholder="Вариант А" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm">
+                        </div>
+                        <div class="md:col-span-2">
+                            <input type="text" id="mq-optB" required placeholder="Вариант Б" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm">
+                        </div>
+                        <div class="md:col-span-2">
+                            <input type="text" id="mq-optC" placeholder="Вариант В" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm">
+                        </div>
+                        <div class="md:col-span-2">
+                            <input type="text" id="mq-optD" placeholder="Вариант Г" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm">
+                        </div>
+                        <div class="md:col-span-2">
+                            <select id="mq-correct" required class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm">
+                                <option value="" disabled selected>Верный</option>
+                                <option value="A">Вариант А</option>
+                                <option value="B">Вариант Б</option>
+                                <option value="C">Вариант В</option>
+                                <option value="D">Вариант Г</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <button type="submit" class="w-full bg-slate-900 hover:bg-black text-brand-orange font-bold text-xs py-3 rounded-lg flex items-center justify-center gap-1 border border-brand-orange/20">
+                                <i class="fa-solid fa-plus"></i> Создать в базе
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Список активных вопросов базы -->
+                    <div class="space-y-3" id="admin-questions-list-container"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ==================== WIZARD: ПОШАГОВЫЙ КОНСТРУКТОР ТЕСТА (MODAL) ==================== -->
+    <div id="test-wizard-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 rounded-t-3xl">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-9 h-9 rounded-xl bg-orange-100 text-brand-orange flex items-center justify-center"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                    <h3 id="wizard-modal-title" class="text-lg font-bold text-slate-900">Мастер создания тестирования</h3>
+                </div>
+                <button onclick="closeTestWizard()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <!-- Wizard Индикатор Шагов -->
+            <div class="px-8 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-400">
+                <div class="flex items-center gap-2" id="wizard-step-indicator-1">
+                    <span class="w-6 h-6 rounded-full bg-brand-orange text-white flex items-center justify-center font-bold">1</span>
+                    <span class="text-slate-800">Настройки</span>
+                </div>
+                <div class="h-0.5 bg-slate-200 flex-1 mx-4"></div>
+                <div class="flex items-center gap-2" id="wizard-step-indicator-2">
+                    <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-bold">2</span>
+                    <span>Вопросы</span>
+                </div>
+                <div class="h-0.5 bg-slate-200 flex-1 mx-4"></div>
+                <div class="flex items-center gap-2" id="wizard-step-indicator-3">
+                    <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-bold">3</span>
+                    <span>Публикация</span>
+                </div>
+            </div>
+
+            <div class="p-6 overflow-y-auto flex-1 space-y-6">
+                <!-- ШАГ 1: НАСТРОЙКИ -->
+                <div id="wizard-step-1" class="space-y-4">
+                    <input type="hidden" id="wizard-edit-campaign-id" value="">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Заголовок тестирования (Title)</label>
+                        <input type="text" id="wz-title" required placeholder="Например: Эксперт по продажам Турции и ОАЭ" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-orange/30 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Подзаголовок (Вводная инструкция соискателю)</label>
+                        <textarea id="wz-subtitle" rows="3" placeholder="Краткое описание целей оценки, методологии или ограничений..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-orange/30 outline-none resize-none"></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Время прохождения</label>
+                            <input type="text" id="wz-duration" placeholder="Напр: 15 минут" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-orange/30 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Бейдж / Ачивка</label>
+                            <input type="text" id="wz-badge" placeholder="Напр: PRO-уровень" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-orange/30 outline-none">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Лимит вопросов</label>
+                            <input type="number" id="wz-limit" min="1" value="10" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-orange/30 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Случайный порядок?</label>
+                            <select id="wz-shuffle" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-orange/30 outline-none">
+                                <option value="yes">Да (перемешивать)</option>
+                                <option value="no">Нет (в строгом порядке)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ШАГ 2: ВОПРОСЫ КОНТЕЙНЕРА -->
+                <div id="wizard-step-2" class="space-y-6 hidden">
+                    <div class="bg-orange-50/50 p-4 rounded-xl border border-orange-200/50 text-xs text-orange-950">
+                        <i class="fa-solid fa-circle-info mr-1 text-brand-orange"></i> Вы можете загрузить индивидуальные вопросы для этого теста. Если вы оставите список вопросов пустым, то тест будет использовать вопросы из Глобальной Базы по отмеченным компетенциям.
+                    </div>
+
+                    <!-- Выбор компетенций -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Шаг 2.1: Выберите оцениваемые компетенции</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl" id="wz-comps-checkbox-container"></div>
+                    </div>
+
+                    <!-- Интеграция вопросов в контейнер -->
+                    <div class="space-y-3">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Шаг 2.2: Способ наполнения вопросами</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="p-4 border border-slate-200 hover:border-brand-orange bg-slate-50/50 hover:bg-white rounded-xl text-center transition cursor-pointer relative">
+                                <input type="file" id="wz-excel-input" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleExcelUpload(event, 'wizard')">
+                                <i class="fa-solid fa-file-excel text-emerald-600 text-2xl mb-1.5"></i>
+                                <h5 class="text-xs font-bold">Импорт Excel в этот тест</h5>
+                                <p class="text-[10px] text-slate-400 mt-1">Добавит вопросы исключительно в этот контейнер</p>
+                            </div>
+                            <div onclick="addWizardManualQuestion()" class="p-4 border border-slate-200 hover:border-brand-orange bg-slate-50/50 hover:bg-white rounded-xl text-center transition cursor-pointer">
+                                <i class="fa-solid fa-pen-to-square text-brand-orange text-2xl mb-1.5"></i>
+                                <h5 class="text-xs font-bold">Добавить вопрос вручную</h5>
+                                <p class="text-[10px] text-slate-400 mt-1">Построчный конструктор вопроса</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Локальная таблица вопросов контейнера -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-500">
+                            <span>Вопросы внутри контейнера (<span id="wz-local-count">0</span>)</span>
+                            <button type="button" onclick="clearWzLocalQuestions()" class="text-rose-500 hover:text-rose-700">Очистить вопросы</button>
+                        </div>
+                        <div id="wz-local-questions-list" class="max-h-48 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white text-xs"></div>
+                    </div>
+                </div>
+
+                <!-- ШАГ 3: ПУБЛИКАЦИЯ -->
+                <div id="wizard-step-3" class="space-y-6 hidden text-center">
+                    <div class="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto shadow-inner border border-emerald-100">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div class="space-y-1.5">
+                        <h4 class="text-lg font-bold text-slate-900">Тест полностью настроен и готов!</h4>
+                        <p class="text-xs text-slate-500 max-w-sm mx-auto">Скопируйте сгенерированную умную ссылку и отправьте её соискателям. Ссылка содержит в себе все зашифрованные метаданные и вопросы!</p>
+                    </div>
+
+                    <div class="bg-slate-50 p-4 border border-slate-200 rounded-xl flex items-center justify-between text-left gap-2">
+                        <div class="truncate flex-1 font-mono text-xs text-slate-600 font-semibold" id="wz-generated-link-display">Загрузка...</div>
+                        <button type="button" onclick="copyWizardLink()" class="bg-brand-orange text-white hover:bg-orange-600 font-bold px-4 py-2 rounded-lg text-xs transition shrink-0 shadow-sm">Копировать</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Кнопки управления шагами -->
+            <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-3xl flex justify-between">
+                <button type="button" id="wz-prev-btn" onclick="wizardPrevStep()" class="hidden px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition font-bold text-xs text-slate-600">Назад</button>
+                <button type="button" id="wz-next-btn" onclick="wizardNextStep()" class="ml-auto px-6 py-3 bg-slate-900 text-brand-orange hover:bg-black hover:text-white transition font-bold text-xs rounded-xl border border-brand-orange/15 shadow">Продолжить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: РЕДАКТИРОВАНИЕ ВОПРОСА (ТОЧЕЧНО) ==================== -->
+    <div id="edit-question-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden p-4">
+        <div class="bg-white rounded-3xl max-w-xl w-full border border-slate-200 shadow-2xl overflow-hidden">
+            <div class="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-brand-orange text-lg"><i class="fa-solid fa-pen-to-square"></i></span>
+                    <h3 class="text-base font-bold text-slate-950">Редактирование вопроса</h3>
+                </div>
+                <button onclick="closeEditQuestionModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <form onsubmit="saveEditedQuestion(event)" class="p-6 space-y-4">
+                <input type="hidden" id="eq-id">
+                <input type="hidden" id="eq-source"> <!-- global или wizard -->
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-1">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Компетенция</label>
+                        <input type="text" id="eq-comp" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-brand-orange outline-none">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Верный ответ</label>
+                        <select id="eq-correct" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-brand-orange outline-none">
+                            <option value="A">Вариант А</option>
+                            <option value="B">Вариант Б</option>
+                            <option value="C">Вариант В</option>
+                            <option value="D">Вариант Г</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Текст вопроса (Орфография / Формулировки)</label>
+                    <textarea id="eq-text" required rows="3" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-brand-orange outline-none resize-none"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Вариант А</label>
+                        <input type="text" id="eq-optA" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-brand-orange outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Вариант Б</label>
+                        <input type="text" id="eq-optB" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-brand-orange outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Вариант В (Опционально)</label>
+                        <input type="text" id="eq-optC" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-brand-orange outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Вариант Г (Опционально)</label>
+                        <input type="text" id="eq-optD" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-brand-orange outline-none">
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeEditQuestionModal()" class="w-1/2 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition">Отмена</button>
+                    <button type="submit" class="w-1/2 py-2.5 bg-slate-900 text-brand-orange rounded-xl text-xs font-bold hover:bg-black transition">Сохранить изменения</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО АНАЛИЗА КОМПЕТЕНЦИЙ СОИСКАТЕЛЯ -->
+    <div id="skills-analysis-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-orange-100 text-brand-orange flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900" id="analysis-candidate-name">Загрузка...</h3>
+                        <p class="text-xs text-slate-500">Подробный радар и разбор дефицитных зон навыка</p>
+                    </div>
+                </div>
+                <button onclick="closeSkillsAnalysisModal()" class="text-slate-400 hover:text-slate-600 p-2 rounded-lg transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-6">
+                <!-- Контейнер для графика Chart.js -->
+                <div class="flex justify-center bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                    <div class="w-full max-w-[320px] h-[280px]">
+                        <canvas id="skills-radar-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Таблица компетенций и дефицитов -->
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-wider px-2">
+                        <span>Навык (Компетенция)</span>
+                        <span>Оценка (%)</span>
+                    </div>
+                    <div id="analysis-skills-list" class="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden bg-white"></div>
+                </div>
+
+                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl space-y-1">
+                    <h5 class="text-xs font-bold text-indigo-950 uppercase tracking-wide">Резюме аналитики дефицитов</h5>
+                    <p class="text-xs text-indigo-700 leading-normal">
+                        Система автоматически определила критические пробелы соискателя (навыки менее 70%). Рекомендуется предоставить узкоспециализированные микро-модули обучения вместо комплексного 10-часового курса.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ТЕХНИЧЕСКИЙ ПОДВАЛ -->
+    <footer class="mt-auto border-t border-slate-200 bg-white py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-400 gap-4">
+            <div class="flex items-center space-x-2">
+                <span class="font-bold text-slate-700">Тестограф v3.0.0</span>
+            </div>
+            <!-- Секретный вход по двойному клику на строку копирайта -->
+            <div class="cursor-pointer select-none py-1 px-2 rounded hover:bg-slate-50 transition" ondblclick="openAdminLoginModal()" title="Двойной быстрый клик для входа администратора">
+                <span>&copy; 2026 Все права защищены &bull; Конфиденциально</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Firebase SDK Modules Integration (Importing from CDN conforming with environment instructions) -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, getDocs, onSnapshot, deleteDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        /* ==================== GLOBAL FIREBASE INITIALIZATION ==================== */
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-testograf-app';
+        let firebaseApp = null;
+        let auth = null;
+        let db = null;
+        let isFirebaseActive = false;
+        let firebaseUnsubscribes = [];
+
+        async function initFirebaseSync() {
+            // Очищаем старые подписки, если они были
+            firebaseUnsubscribes.forEach(unsub => { try { unsub(); } catch(e) {} });
+            firebaseUnsubscribes = [];
+
+            let firebaseConfig = null;
+            
+            // 1. Проверяем системное окружение
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                try { firebaseConfig = JSON.parse(__firebase_config); } catch(e) {}
+            }
+            
+            // 2. Проверяем пользовательский сохраненный конфиг в localStorage
+            if (!firebaseConfig) {
+                const savedConfig = localStorage.getItem('testograf_custom_firebase_v3');
+                if (savedConfig) {
+                    try { firebaseConfig = JSON.parse(savedConfig); } catch(e) {}
+                }
+            }
+
+            const badge = document.getElementById('firebase-active-badge');
+            const navStatus = document.getElementById('firebase-cloud-status');
+
+            if (firebaseConfig) {
+                try {
+                    firebaseApp = initializeApp(firebaseConfig);
+                    auth = getAuth(firebaseApp);
+                    db = getFirestore(firebaseApp);
+
+                    // Сначала выполняем авторизацию (RULE 3)
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+
+                    isFirebaseActive = true;
+                    if (badge) {
+                        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center gap-1.5";
+                        badge.innerHTML = `<span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span> Облако активно`;
+                    }
+                    if (navStatus) {
+                        navStatus.classList.remove('hidden');
+                        navStatus.className = "hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-100 bg-emerald-50 text-emerald-700 text-xs font-semibold";
+                        navStatus.innerHTML = `<i class="fa-solid fa-cloud"></i> Синхронизация активна`;
+                    }
+
+                    // Подключаем слушатели данных в реальном времени (RULE 1 & RULE 2)
+                    setupRealtimeSync();
+
+                } catch (err) {
+                    console.error("Ошибка подключения к Firebase:", err);
+                    showToast("Не удалось подключить Firebase. Возврат в локальный режим.", "error");
+                    switchToLocalMode();
+                }
+            } else {
+                switchToLocalMode();
+            }
+        }
+
+        function switchToLocalMode() {
+            isFirebaseActive = false;
+            const badge = document.getElementById('firebase-active-badge');
+            const navStatus = document.getElementById('firebase-cloud-status');
+            if (badge) {
+                badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500";
+                badge.textContent = "Локальный режим (LocalStorage)";
+            }
+            if (navStatus) {
+                navStatus.classList.add('hidden');
+            }
+            renderAdminDashboard();
+        }
+
+        // Синхронизация в реальном времени (без сложных запросов, RULE 2)
+        function setupRealtimeSync() {
+            if (!isFirebaseActive || !db) return;
+
+            // 1. Синхронизация результатов кандидатов
+            const candCol = collection(db, 'artifacts', appId, 'public', 'data', 'candidates');
+            const unsubCandidates = onSnapshot(candCol, (snapshot) => {
+                const list = [];
+                snapshot.forEach(doc => {
+                    list.push({ id: doc.id, ...doc.data() });
+                });
+                // Сортируем локально по дате/времени (RULE 2)
+                list.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+                candidatesDb = list;
+                localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
+                renderAdminDashboard();
+            }, (error) => {
+                console.error("Отказ в доступе к кандидатам:", error);
+            });
+            firebaseUnsubscribes.push(unsubCandidates);
+
+            // 2. Синхронизация базы вопросов
+            const questCol = collection(db, 'artifacts', appId, 'public', 'data', 'questions');
+            const unsubQuestions = onSnapshot(questCol, (snapshot) => {
+                const list = [];
+                snapshot.forEach(doc => {
+                    list.push({ id: Number(doc.id) || doc.id, ...doc.data() });
+                });
+                if (list.length > 0) {
+                    questions = list;
+                    localStorage.setItem('testograf_questions_v2', JSON.stringify(questions));
+                }
+                renderAdminDashboard();
+            }, (error) => {
+                console.error("Отказ в доступе к вопросам:", error);
+            });
+            firebaseUnsubscribes.push(unsubQuestions);
+
+            // 3. Синхронизация кампаний/контейнеров
+            const campCol = collection(db, 'artifacts', appId, 'public', 'data', 'campaigns');
+            const unsubCampaigns = onSnapshot(campCol, (snapshot) => {
+                const list = [];
+                snapshot.forEach(doc => {
+                    list.push({ id: doc.id, ...doc.data() });
+                });
+                if (list.length > 0) {
+                    campaigns = list;
+                    localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
+                }
+                renderAdminDashboard();
+            }, (error) => {
+                console.error("Отказ в доступе к кампаниям:", error);
+            });
+            firebaseUnsubscribes.push(unsubCampaigns);
+        }
+
+        /* ==================== СОСТОЯНИЕ ПРИЛОЖЕНИЯ ==================== */
+        let questions = JSON.parse(localStorage.getItem('testograf_questions_v2')) || [];
+        let campaigns = JSON.parse(localStorage.getItem('testograf_campaigns_v2')) || [];
+        let candidatesDb = JSON.parse(localStorage.getItem('testograf_candidates_v2')) || [];
+
+        // Если локально пусто, грузим дефолт для старта
+        if (questions.length === 0) {
+            questions = [
+                { id: 1, competency: "Турция", question: "Какое из побережий Турции традиционно считается более прохладным в начале лета из-за Эгейских течений?", options: { A: "Анталийское побережье", B: "Эгейское побережье (Бодрум / Мармарис)", C: "Мраморное море", D: "Черноморское побережье" }, correct: "B" },
+                { id: 2, competency: "Турция", question: "Какой курортный поселок Белека славится песчаными пляжами, пологим входом и сосновыми лесами?", options: { A: "Кадрие", B: "Бельдиби", C: "Текирова", D: "Махмутлар" }, correct: "A" },
+                { id: 3, competency: "Египет", question: "В какой бухте Шарм-эль-Шейха зимой наиболее безветренно благодаря глубокой защите скалами?", options: { A: "Набк Бей", B: "Наама Бей", C: "Рас-Умм-эль-Сид (Шарм-эль-Майя)", D: "Рас Насрани" }, correct: "C" },
+                { id: 4, competency: "Египет", question: "Какое из правил въезда для граждан РФ действует при прямом прилете в аэропорт Хургады?", options: { A: "Виза бесплатная на 15 дней", B: "Приобретается туристическая визовая марка за $25 в аэропорту", C: "Визу необходимо оформлять только заранее в Москве", D: "Разрешен въезд по внутренним паспортам РФ" }, correct: "B" },
+                { id: 5, competency: "Вьетнам", question: "Каковы особенности влажного сезона дождей и тайфунов в Нячанге, в отличие от Муйне?", options: { A: "Сезон дождей идет летом (июнь-август)", B: "Осадки и тайфуны сдвинуты на конец осени и зиму (октябрь-декабрь)", C: "Дождей практически не бывает", D: "Весь год дуют сильные ветра без осадков" }, correct: "B" },
+                { id: 6, competency: "Вьетнам", question: "На каком вьетнамском острове сезон дождей совпадает с нашим летом, а зимой наблюдается пиковая сухая погода?", options: { A: "Фукуок", B: "Катба", C: "Кондао", D: "Хойан" }, correct: "A" },
+                { id: 7, competency: "CRM", question: "Что является ключевой ошибкой ведения сделки на этапе 'В работе' в воронке продаж CRM-системы?", options: { A: "Отсутствие запланированного следующего действия/задачи для менеджера", B: "Слишком подробное описание комментариев о звонке", C: "Добавление нескольких тегов клиентов", D: "Фиксация почты клиента в карточке контакта" }, correct: "A" },
+                { id: 8, competency: "CRM", question: "При каком статусе сделки клиенту автоматически отправляется триггерная СМС-визитка в настроенной воронке?", options: { A: "Успешно реализовано", B: "Неразобранное (новый входящий лид)", C: "Закрыто и не реализовано", D: "На этапе коммерческого предложения" }, correct: "A" },
+                { id: 9, competency: "Продажи в мессенджерах", question: "Какое правило является критически важным для соблюдения деловой этики при аудиообщении в мессенджерах?", options: { A: "Отправлять голосовые сообщения всегда без предупреждения", B: "Предварительно запросить текстовое согласие клиента на аудиосообщение", C: "Длина голосового сообщения должна быть строго не менее 3 минут", D: "Использовать исключительно неформальные смайлики" }, correct: "B" },
+                { id: 10, competency: "Продажи в мессенджерах", question: "Как лучше всего оформить длинный перечень условий тура в мессенджере для сохранения читаемости?", options: { A: "Прислать одним огромным неразделенным блоком текста", B: "Разбить на небольшие абзацы по 2-3 строки с маркированным списком", C: "Отправить 15 сообщений подряд по одному предложению", D: "Сделать скриншот текстового документа" }, correct: "B" },
+                { id: 11, competency: "Premium сегмент", question: "Какое основное отличие VIP услуги 'CIP-терминал' от стандартного ожидания в 'Business Lounge'?", options: { A: "Более дорогая марка кофе в меню терминала", B: "Индивидуальное прохождение всех процедур внутри терминала с трансфером до борта на авто премиум класса", C: "Возможность бесплатно проносить неограниченный багаж", D: "Доступ в специальную курительную зону" }, correct: "B" },
+                { id: 12, competency: "Premium сегмент", question: "Какая концепция питания и услуг гарантирует наивысший уровень уединенного премиум отдыха?", options: { A: "Standard Bed & Breakfast", B: "All Inclusive с доступом к общему шведскому столу", C: "Ultra All Inclusive с личным батлером, выделенным VIP пляжем и a-la carte ресторанами по меню для гостей вилл", D: "Полупансион без напитков" }, correct: "C" }
+            ];
+        }
+
+        if (campaigns.length === 0) {
+            campaigns = [
+                {
+                    id: "default_all",
+                    title: "Общая оценка (Все компетенции)",
+                    subtitle: "Наш алгоритм точечно выявляет пробелы в знаниях. Это избавляет от прохождения долгих общих курсов на 10 часов, позволяя точечно развивать дефицитные зоны.",
+                    duration: "10 минут",
+                    questionLimit: 12,
+                    badge: "Интеллектуальная оценка",
+                    competencies: ["Турция", "Египет", "Вьетнам", "CRM", "Продажи в мессенджерах", "Premium сегмент"],
+                    localQuestions: [],
+                    created: "15.06.2026"
+                }
+            ];
+        }
+
+        let activeCampaign = null;
+        let activeCampaignQuestions = [];
+        let logoClicksCount = 0;
+        let logoClicksTimer = null;
+        let isAdminAuthorized = false;
+
+        let currentCandidate = null;
+        let currentQuestionIdx = 0;
+        let answersState = {}; 
+        let testTimerInterval = null;
+        let testTimerSeconds = 0;
+        let activeChartInstance = null;
+
+        // Переменные для мастера создания теста (Wizard State)
+        let wizardStep = 1;
+        let wizardLocalQuestions = [];
+
+        /* ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==================== */
+        function shuffleArray(array) {
+            let shuffled = [...array];
+            let curId = shuffled.length;
+            while (0 !== curId) {
+                let randId = Math.floor(Math.random() * curId);
+                curId -= 1;
+                let tmp = shuffled[curId];
+                shuffled[curId] = shuffled[randId];
+                shuffled[randId] = tmp;
+            }
+            return shuffled;
+        }
+
+        // Всплывающие информативные уведомления
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-xl shadow-lg border text-sm font-semibold flex items-center gap-3 bg-white text-slate-800 transition-all duration-300 transform translate-x-12 opacity-0 pointer-events-auto border-slate-100`;
+            
+            let icon = '<i class="fa-solid fa-circle-check text-brand-orange text-lg"></i>';
+            if (type === 'error') {
+                icon = '<i class="fa-solid fa-circle-xmark text-rose-500 text-lg"></i>';
+            } else if (type === 'info') {
+                icon = '<i class="fa-solid fa-circle-info text-indigo-500 text-lg"></i>';
+            }
+
+            toast.innerHTML = `
+                ${icon}
+                <div class="flex-1">${message}</div>
+                <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            `;
+
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-x-12', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                if (toast && toast.parentElement) {
+                    toast.classList.add('translate-x-12', 'opacity-0');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4000);
+        }
+
+        // Копирование в буфер обмена
+        function copyToClipboard(text) {
+            const tempInput = document.createElement("input");
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            showToast("Ссылка успешно скопирована в буфер обмена!");
+        }
+
+        // Скачивание Excel шаблона вопросов
+        function downloadExcelTemplate() {
+            const templateData = [
+                {
+                    Competency: "Турция",
+                    Question: "Какое побережье Турции считается прохладным в начале лета?",
+                    OptionA: "Анталийское",
+                    OptionB: "Эгейское",
+                    OptionC: "Мраморное",
+                    OptionD: "Черноморское",
+                    Correct: "B"
+                },
+                {
+                    Competency: "CRM",
+                    Question: "Что важно планировать в воронке после каждого контакта?",
+                    OptionA: "Следующее действие/задачу",
+                    OptionB: "Перевод в статус Закрыто",
+                    OptionC: "Удаление лида",
+                    OptionD: "Архивирование",
+                    Correct: "A"
+                }
+            ];
+
+            const worksheet = XLSX.utils.json_to_sheet(templateData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Шаблон Тестографа");
+            XLSX.writeFile(workbook, "testograf_questions_template.xlsx");
+            showToast("Скачивание шаблона запущено!");
+        }
+
+        // Экспорт результатов соискателей в полноценный Excel-отчет
+        function exportCandidatesToExcel() {
+            if (candidatesDb.length === 0) {
+                showToast("Нет результатов для экспорта!", "error");
+                return;
+            }
+
+            const flatReport = candidatesDb.map(c => {
+                const reportRow = {
+                    "ФИО Кандидата": c.name,
+                    "Опыт работы": c.experience || "",
+                    "Среднее кол-во заявок": c.leadsCount || "",
+                    "Наличие сотрудников": c.hasStaff || "",
+                    "Менеджеров в подчинении": c.staffCount || "",
+                    "Продаваемые направления": c.destinations || "",
+                    "Тест": c.testTitle || "Общая оценка",
+                    "Общий результат %": c.score,
+                    "Дата": c.date
+                };
+
+                Object.entries(c.skills || {}).forEach(([skill, score]) => {
+                    reportRow[`Компетенция: ${skill} %`] = score;
+                });
+
+                return reportRow;
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(flatReport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Результаты оценки");
+            XLSX.writeFile(workbook, `testograf_candidates_report_${new Date().toLocaleDateString('ru-RU')}.xlsx`);
+            showToast("Экспорт данных успешно завершен!");
+        }
+
+        // Открытие модального окна анализа компетенций кандидата
+        function openSkillsAnalysisModal(cand) {
+            const nameEl = document.getElementById('analysis-candidate-name');
+            if (nameEl) nameEl.textContent = cand.name;
+            
+            const skillsList = document.getElementById('analysis-skills-list');
+            if (!skillsList) return;
+            skillsList.innerHTML = '';
+
+            const skillLabels = [];
+            const skillValues = [];
+
+            if (cand.skills) {
+                Object.entries(cand.skills).forEach(([skill, score]) => {
+                    skillLabels.push(skill);
+                    skillValues.push(score);
+
+                    let statusBadge = '';
+                    let scoreColor = 'text-brand-orange';
+                    
+                    if (score >= 85) {
+                        statusBadge = '<span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Высокий уровень</span>';
+                        scoreColor = 'text-emerald-600';
+                    } else if (score >= 70) {
+                        statusBadge = '<span class="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-bold">Допустимый</span>';
+                        scoreColor = 'text-amber-600';
+                    } else {
+                        statusBadge = '<span class="text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full font-bold">Пробел в знаниях</span>';
+                        scoreColor = 'text-rose-600';
+                    }
+
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between p-3 hover:bg-slate-50 transition text-xs";
+                    item.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-slate-800">${skill}</span>
+                            ${statusBadge}
+                        </div>
+                        <span class="font-mono font-extrabold ${scoreColor} text-sm">${score}%</span>
+                    `;
+                    skillsList.appendChild(item);
+                });
+            } else {
+                skillsList.innerHTML = `<div class="p-4 text-center text-slate-400">Нет данных о навыках</div>`;
+            }
+
+            const modal = document.getElementById('skills-analysis-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+
+            // Отрисовка Radar-диаграммы с помощью Chart.js
+            setTimeout(() => {
+                const canvas = document.getElementById('skills-radar-chart');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                if (activeChartInstance) {
+                    activeChartInstance.destroy();
+                }
+
+                activeChartInstance = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: skillLabels,
+                        datasets: [{
+                            label: 'Показатели навыков (%)',
+                            data: skillValues,
+                            backgroundColor: 'rgba(234, 106, 0, 0.2)',
+                            borderColor: '#ea6a00',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#ea6a00',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: '#ea6a00'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            r: {
+                                angleLines: { display: true },
+                                min: 0,
+                                max: 100,
+                                ticks: { stepSize: 20, display: false }
+                            }
+                        }
+                    }
+                });
+            }, 50);
+        }
+
+        // Закрытие модального окна детального разбора навыков
+        function closeSkillsAnalysisModal() {
+            const modal = document.getElementById('skills-analysis-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        // Вшиваем вопросы и параметры прямо в URL для полной автономности и сохранности!
+        function getCampaignShareUrl(c) {
+            const params = new URLSearchParams();
+            params.set('testId', c.id);
+            params.set('title', c.title);
+            params.set('subtitle', c.subtitle || '');
+            params.set('duration', c.duration || '10 минут');
+            params.set('badge', c.badge || 'PRO');
+            params.set('limit', c.questionLimit || 10);
+            params.set('comps', c.competencies.join(','));
+
+            // Если у теста есть локальные вопросы, кодируем их. Иначе берём из глобального пула
+            const targetQs = (c.localQuestions && c.localQuestions.length > 0)
+                ? c.localQuestions 
+                : questions.filter(q => c.competencies.includes(q.competency));
+
+            try {
+                const serializedQs = btoa(unescape(encodeURIComponent(JSON.stringify(targetQs))));
+                params.set('qs', serializedQs);
+            } catch (err) {
+                console.error("Ошибка кодирования вопросов в URL:", err);
+            }
+
+            const baseUrl = window.location.href.split('?')[0];
+            return baseUrl + '?' + params.toString();
+        }
+
+        function registerLogoClick() {
+            logoClicksCount++;
+            clearTimeout(logoClicksTimer);
+            if (logoClicksCount >= 5) {
+                logoClicksCount = 0;
+                openAdminLoginModal();
+            } else {
+                logoClicksTimer = setTimeout(() => {
+                    logoClicksCount = 0;
+                }, 4000);
+            }
+        }
+
+        function openAdminLoginModal() {
+            const modal = document.getElementById('admin-login-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                const input = document.getElementById('admin-passcode-input');
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+            }
+        }
+
+        function closeAdminLoginModal() {
+            const modal = document.getElementById('admin-login-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function verifyAdminPasscode(e) {
+            e.preventDefault();
+            const input = document.getElementById('admin-passcode-input');
+            const inputVal = input ? input.value.trim() : '';
+            
+            if (inputVal === 'admin2026' || inputVal === '2026') {
+                isAdminAuthorized = true;
+                showToast("Доступ подтвержден!");
+                const btn = document.getElementById('nav-admin-btn');
+                if (btn) btn.classList.remove('hidden');
+                closeAdminLoginModal();
+                switchView('admin-panel');
+            } else {
+                showToast("Неверный код доступа!", "error");
+            }
+        }
+
+        function toggleStaffCount(show) {
+            const container = document.getElementById('staff-count-container');
+            const select = document.getElementById('cand-staff-count');
+            if (!container || !select) return;
+
+            if (show) {
+                container.classList.remove('hidden');
+                select.required = true;
+            } else {
+                container.classList.add('hidden');
+                select.required = false;
+                select.value = '';
+            }
+        }
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.add('hidden'));
+            
+            const targetView = document.getElementById(`view-${viewId}`);
+            if (targetView) targetView.classList.remove('hidden');
+
+            const navCandidate = document.getElementById('nav-candidate-btn');
+            const navAdmin = document.getElementById('nav-admin-btn');
+
+            if (viewId === 'admin-panel') {
+                if (navAdmin) {
+                    navAdmin.className = "px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-brand-orange text-white shadow-md shadow-brand-orange/15 flex items-center gap-2";
+                }
+                if (navCandidate) {
+                    navCandidate.className = "px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-600 hover:text-slate-900 flex items-center gap-2";
+                }
+                renderAdminDashboard();
+            } else {
+                if (navCandidate) {
+                    navCandidate.className = "px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-white text-slate-900 shadow-sm flex items-center gap-2 border border-slate-200";
+                }
+                if (navAdmin) {
+                    if (isAdminAuthorized) {
+                        navAdmin.className = "px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-600 hover:text-slate-900 flex items-center gap-2";
+                    } else {
+                        navAdmin.className = "hidden";
+                    }
+                }
+            }
+        }
+
+        /* ==================== ТЕСТИРОВАНИЕ КАНДИДАТОВ ==================== */
+        function startTest(e) {
+            e.preventDefault();
+            const name = document.getElementById('cand-name')?.value.trim();
+            const exp = document.getElementById('cand-exp-select')?.value;
+            const leadsCount = document.getElementById('cand-leads-count')?.value.trim();
+            const hasStaff = document.querySelector('input[name="cand-has-staff"]:checked')?.value || "Нет";
+            const staffCount = hasStaff === 'Да' ? document.getElementById('cand-staff-count')?.value : "Нет сотрудников";
+            const checkedDests = Array.from(document.querySelectorAll('input[name="cand-dest"]:checked')).map(el => el.value);
+            const destinationsStr = checkedDests.length > 0 ? checkedDests.join(', ') : 'Не указаны';
+
+            if (!name || !exp) {
+                showToast("Пожалуйста, заполните основные поля анкеты!", "error");
+                return;
+            }
+            if (activeCampaignQuestions.length === 0) {
+                showToast("В данном тесте нет доступных вопросов!", "error");
+                return;
+            }
+
+            currentCandidate = {
+                id: 'cand_' + Date.now(),
+                name: name,
+                experience: exp,
+                leadsCount: leadsCount,
+                hasStaff: hasStaff,
+                staffCount: staffCount,
+                destinations: destinationsStr,
+                testId: activeCampaign ? activeCampaign.id : "default_all",
+                testTitle: activeCampaign ? activeCampaign.title : "Общая оценка (Все компетенции)",
+                date: new Date().toLocaleDateString('ru-RU')
+            };
+
+            currentQuestionIdx = 0;
+            answersState = {};
+            renderQuestion();
+
+            testTimerSeconds = 0;
+            clearInterval(testTimerInterval);
+            testTimerInterval = setInterval(() => {
+                testTimerSeconds++;
+                const mins = Math.floor(testTimerSeconds / 60).toString().padStart(2, '0');
+                const secs = (testTimerSeconds % 60).toString().padStart(2, '0');
+                const timerEl = document.getElementById('test-timer');
+                if (timerEl) timerEl.textContent = `${mins}:${secs}`;
+            }, 1000);
+
+            switchView('test-interface');
+        }
+
+        function renderQuestion() {
+            if (activeCampaignQuestions.length === 0) return;
+            const currentQ = activeCampaignQuestions[currentQuestionIdx];
+            
+            const counterEl = document.getElementById('test-counter');
+            if (counterEl) counterEl.textContent = `${currentQuestionIdx + 1}/${activeCampaignQuestions.length}`;
+            
+            const compBadgeEl = document.getElementById('current-competency-badge');
+            if (compBadgeEl) compBadgeEl.textContent = `Компетенция: ${currentQ.competency}`;
+            
+            const progressPct = ((currentQuestionIdx + 1) / activeCampaignQuestions.length) * 100;
+            const progressBarEl = document.getElementById('test-progress-bar');
+            if (progressBarEl) progressBarEl.style.width = `${progressPct}%`;
+
+            const compTagEl = document.getElementById('question-comp-tag');
+            if (compTagEl) compTagEl.textContent = currentQ.competency;
+            
+            const textEl = document.getElementById('question-text');
+            if (textEl) textEl.textContent = currentQ.question;
+
+            const grid = document.getElementById('answer-options-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            const selectedAns = answersState[currentQ.id] || null;
+
+            Object.entries(currentQ.options).forEach(([key, text]) => {
+                if (!text) return; 
+                const isSelected = selectedAns === key;
+
+                const optButton = document.createElement('button');
+                optButton.type = 'button';
+                optButton.onclick = () => selectAnswer(currentQ.id, key);
+                optButton.className = `w-full text-left p-4 rounded-xl border-2 transition-all flex items-center justify-between group ${
+                    isSelected 
+                    ? 'border-brand-orange bg-orange-50/40 shadow-sm font-semibold text-slate-900' 
+                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50 text-slate-700'
+                }`;
+
+                optButton.innerHTML = `
+                    <div class="flex items-center gap-3.5">
+                        <span class="w-8 h-8 rounded-lg ${isSelected ? 'bg-brand-orange text-white' : 'bg-slate-100 text-slate-500'} flex items-center justify-center font-bold font-mono text-sm transition-colors">
+                            ${key}
+                        </span>
+                        <span class="text-sm md:text-base font-medium">${text}</span>
+                    </div>
+                    <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-brand-orange bg-brand-orange' : 'border-slate-300'}">
+                        ${isSelected ? '<i class="fa-solid fa-check text-white text-[10px]"></i>' : ''}
+                    </div>
+                `;
+                grid.appendChild(optButton);
+            });
+
+            const prevBtn = document.getElementById('prev-question-btn');
+            if (prevBtn) prevBtn.disabled = currentQuestionIdx === 0;
+            
+            const nextBtn = document.getElementById('next-question-btn');
+            if (nextBtn) {
+                if (currentQuestionIdx === activeCampaignQuestions.length - 1) {
+                    nextBtn.innerHTML = `Завершить тест <i class="fa-solid fa-flag-checkered ml-1"></i>`;
+                } else {
+                    nextBtn.innerHTML = `Ответить & Дальше <i class="fa-solid fa-arrow-right"></i>`;
+                }
+                nextBtn.disabled = !answersState[currentQ.id];
+            }
+        }
+
+        function selectAnswer(qId, val) {
+            answersState[qId] = val;
+            renderQuestion();
+        }
+
+        function previousQuestion() {
+            if (currentQuestionIdx > 0) {
+                currentQuestionIdx--;
+                renderQuestion();
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIdx === activeCampaignQuestions.length - 1) {
+                finishTesting();
+            } else {
+                currentQuestionIdx++;
+                renderQuestion();
+            }
+        }
+
+        async function finishTesting() {
+            clearInterval(testTimerInterval);
+            
+            const compTotals = {};
+            const compCorrect = {};
+
+            activeCampaignQuestions.forEach(q => {
+                if (!compTotals[q.competency]) {
+                    compTotals[q.competency] = 0;
+                    compCorrect[q.competency] = 0;
+                }
+                compTotals[q.competency]++;
+                if (answersState[q.id] === q.correct) {
+                    compCorrect[q.competency]++;
+                }
+            });
+
+            const skillsScore = {};
+            let totalQuestionsCount = 0;
+            let totalCorrectAnswers = 0;
+
+            Object.keys(compTotals).forEach(comp => {
+                const total = compTotals[comp];
+                const correct = compCorrect[comp];
+                const percent = Math.round((correct / total) * 100);
+                skillsScore[comp] = percent;
+
+                totalQuestionsCount += total;
+                totalCorrectAnswers += correct;
+            });
+
+            const overallPct = totalQuestionsCount > 0 ? Math.round((totalCorrectAnswers / totalQuestionsCount) * 100) : 0;
+
+            currentCandidate.score = overallPct;
+            currentCandidate.skills = skillsScore;
+            currentCandidate.timestamp = Date.now();
+
+            if (isFirebaseActive && db) {
+                try {
+                    // Пишем в облачную базу строго по регламенту RULE 1 & RULE 3
+                    const candCol = collection(db, 'artifacts', appId, 'public', 'data', 'candidates');
+                    await addDoc(candCol, currentCandidate);
+                    showToast("Ваш результат сохранен в облачной базе!");
+                } catch (e) {
+                    console.error("Ошибка сохранения в Firebase:", e);
+                    saveCandidateLocally(currentCandidate);
+                }
+            } else {
+                saveCandidateLocally(currentCandidate);
+            }
+
+            switchView('results');
+        }
+
+        function saveCandidateLocally(cand) {
+            candidatesDb.unshift(cand);
+            localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
+            showToast("Результаты успешно сохранены локально");
+        }
+
+        function resetTestingFlow() {
+            document.getElementById('candidate-form')?.reset();
+            toggleStaffCount(false);
+            initCampaignConfiguration(); 
+            switchView('candidate-reg');
+        }
+
+        /* ==================== АДМИН-ПАНЕЛЬ: РЕНДЕРИНГ ДАННЫХ ==================== */
+        function renderAdminDashboard() {
+            try {
+                const total = candidatesDb.length;
+                const totalEl = document.getElementById('admin-stat-total');
+                if (totalEl) totalEl.textContent = total;
+
+                let avgScore = 0;
+                if (total > 0) {
+                    const sum = candidatesDb.reduce((acc, c) => acc + (c.score || 0), 0);
+                    avgScore = Math.round(sum / total);
+                }
+                const avgEl = document.getElementById('admin-stat-avg');
+                if (avgEl) avgEl.textContent = `${avgScore}%`;
+                
+                const questEl = document.getElementById('admin-stat-questions');
+                if (questEl) questEl.textContent = questions.length;
+
+                let mainGap = 'Нет данных';
+                if (total > 0) {
+                    const skillTotals = {};
+                    const skillCounts = {};
+                    candidatesDb.forEach(c => {
+                        if (c.skills) {
+                            Object.entries(c.skills).forEach(([skill, score]) => {
+                                if (!skillTotals[skill]) {
+                                    skillTotals[skill] = 0;
+                                    skillCounts[skill] = 0;
+                                }
+                                skillTotals[skill] += score;
+                                skillCounts[skill]++;
+                            });
+                        }
+                    });
+
+                    let lowestAvg = Infinity;
+                    let lowestSkill = '';
+                    Object.keys(skillTotals).forEach(skill => {
+                        const avg = skillTotals[skill] / skillCounts[skill];
+                        if (avg < lowestAvg) {
+                            lowestAvg = avg;
+                            lowestSkill = skill;
+                        }
+                    });
+                    if (lowestSkill) {
+                        mainGap = `${lowestSkill} (${Math.round(lowestAvg)}%)`;
+                    }
+                }
+                const gapEl = document.getElementById('admin-stat-gap');
+                if (gapEl) gapEl.textContent = mainGap;
+
+                document.getElementById('cand-count-badge').textContent = total;
+                document.getElementById('camp-count-badge').textContent = campaigns.length;
+                document.getElementById('quest-count-badge').textContent = questions.length;
+
+                // Селект фильтрации результатов
+                const select = document.getElementById('admin-filter-campaign-select');
+                if (select) {
+                    const currentValue = select.value || 'all';
+                    select.innerHTML = `
+                        <option value="all">Все результаты (без фильтрации)</option>
+                        <option value="default_all">Общая оценка (Все компетенции)</option>
+                    `;
+                    campaigns.forEach(c => {
+                        if (c.id === 'default_all') return;
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = c.title;
+                        select.appendChild(opt);
+                    });
+                    select.value = currentValue;
+                }
+
+                renderCandidatesListTab();
+                renderAdminQuestionsPool();
+                renderAdminCampaignsTab();
+            } catch(e) {
+                console.error("Ошибка обновления дашборда", e);
+            }
+        }
+
+        function renderCandidatesListTab() {
+            const tbody = document.getElementById('admin-candidates-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const activeFilter = document.getElementById('admin-filter-campaign-select')?.value || 'all';
+            const filteredDb = candidatesDb.filter(c => {
+                if (activeFilter === 'all') return true;
+                return (c.testId || "default_all") === activeFilter;
+            });
+
+            if (filteredDb.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="p-8 text-center text-slate-400 font-medium">Результаты отсутствуют по заданному фильтру</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            filteredDb.forEach((cand) => {
+                let skillsVisualStr = '';
+                if (cand.skills) {
+                    Object.entries(cand.skills).forEach(([skill, pct]) => {
+                        let color = 'bg-rose-50 text-rose-700 border-rose-100';
+                        if (pct >= 80) color = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                        else if (pct >= 60) color = 'bg-amber-50 text-amber-700 border-amber-100';
+
+                        skillsVisualStr += `
+                            <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ${color}">
+                                ${skill}: ${pct}%
+                            </span>
+                        `;
+                    });
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/50 transition duration-150 cursor-pointer";
+                tr.onclick = (e) => {
+                    if (e.target.closest('button')) return;
+                    openSkillsAnalysisModal(cand);
+                };
+
+                tr.innerHTML = `
+                    <td class="p-4">
+                        <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            ${cand.name}
+                            <span class="text-[10px] font-bold bg-slate-100 text-slate-500 py-0.5 px-1.5 rounded-full"><i class="fa-solid fa-eye mr-1"></i>Анализ</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 mt-1 space-y-0.5 leading-relaxed">
+                            <div><strong>Опыт:</strong> ${cand.experience || '—'}</div>
+                            <div><strong>Лиды/мес:</strong> ${cand.leadsCount || '0'}</div>
+                            <div><strong>Сотрудники:</strong> ${cand.hasStaff === 'Да' ? `Да (${cand.staffCount || '1–2'})` : 'Нет'}</div>
+                            <div class="truncate max-w-xs"><strong>Продает:</strong> <span class="text-brand-orange font-semibold">${cand.destinations || '—'}</span></div>
+                        </div>
+                        <div class="text-[10px] text-indigo-600 font-bold mt-1.5"><i class="fa-solid fa-tag"></i> ${cand.testTitle || 'Общая оценка'}</div>
+                    </td>
+                    <td class="p-4">
+                        <span class="font-mono text-base font-extrabold text-brand-orange">${cand.score}%</span>
+                    </td>
+                    <td class="p-4 max-w-sm">
+                        <div class="flex flex-wrap gap-1">${skillsVisualStr || '<span class="text-xs text-slate-400">Нет данных</span>'}</div>
+                    </td>
+                    <td class="p-4 text-xs text-slate-400 font-medium">${cand.date}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="deleteCandidate('${cand.id}')" class="text-rose-400 hover:text-rose-600 p-2 rounded-lg transition" title="Удалить результаты">
+                            <i class="fa-regular fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        /* РЕДАКТИРОВАНИЕ БАЗЫ ВОПРОСОВ (ТОЧЕЧНОЕ) */
+        function renderAdminQuestionsPool() {
+            const container = document.getElementById('admin-questions-list-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (questions.length === 0) {
+                container.innerHTML = `
+                    <div class="p-8 text-center text-slate-400 font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        Список вопросов пуст. Создайте вручную или загрузите шаблон Excel.
+                    </div>
+                `;
+                return;
+            }
+
+            questions.forEach((q, idx) => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row justify-between gap-4 hover:border-slate-300 transition";
+                card.innerHTML = `
+                    <div class="space-y-3 flex-1">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-xs font-bold text-slate-400">#${idx + 1}</span>
+                                <span class="bg-orange-50 text-brand-orange border border-orange-100 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">${q.competency}</span>
+                            </div>
+                            <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">Ответ: ${q.correct}</span>
+                        </div>
+                        <h4 class="font-bold text-slate-800 text-sm md:text-base leading-snug">${q.question}</h4>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-500 pt-1">
+                            <div class="${q.correct === 'A' ? 'font-bold text-slate-800' : ''}">
+                                <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded mr-1">A</span> ${q.options.A || '—'}
+                            </div>
+                            <div class="${q.correct === 'B' ? 'font-bold text-slate-800' : ''}">
+                                <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded mr-1">B</span> ${q.options.B || '—'}
+                            </div>
+                            <div class="${q.correct === 'C' ? 'font-bold text-slate-800' : ''}">
+                                <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded mr-1">C</span> ${q.options.C || '—'}
+                            </div>
+                            <div class="${q.correct === 'D' ? 'font-bold text-slate-800' : ''}">
+                                <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded mr-1">D</span> ${q.options.D || '—'}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex md:flex-col justify-end items-end gap-2 shrink-0">
+                        <button onclick="openEditQuestionModal(${q.id}, 'global')" class="bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold px-3 py-2 rounded-xl border border-slate-200 text-xs flex items-center gap-1">
+                            <i class="fa-regular fa-edit"></i> Править
+                        </button>
+                        <button onclick="deleteQuestion(${q.id})" class="text-rose-400 hover:text-rose-600 hover:bg-rose-50/50 p-2 rounded-xl transition text-xs font-bold">
+                            <i class="fa-regular fa-trash-can"></i> Удалить
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        /* РЕАКТИРОВАНИЕ ТЕСТОВ (КОНТЕЙНЕРЫ) */
+        function renderAdminCampaignsTab() {
+            const tbody = document.getElementById('admin-campaigns-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            campaigns.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/50 transition";
+                
+                const testUrl = getCampaignShareUrl(c);
+                const localQsCount = c.localQuestions ? c.localQuestions.length : 0;
+
+                tr.innerHTML = `
+                    <td class="py-3 pr-2 space-y-1">
+                        <span class="font-bold text-slate-800 block text-sm">${c.title}</span>
+                        <span class="text-[11px] text-slate-500 block leading-normal italic">"${c.subtitle || 'Без подзаголовка'}"</span>
+                        <div class="flex flex-wrap gap-2 text-[10px] text-slate-400 mt-1 font-medium">
+                            <span><i class="fa-regular fa-clock"></i> ${c.duration || '10 минут'}</span>
+                            <span>&bull;</span>
+                            <span><i class="fa-regular fa-circle-question"></i> Лимит: ${c.questionLimit || '10'} вопр.</span>
+                            <span>&bull;</span>
+                            <span class="bg-orange-100 text-brand-orange px-1.5 py-0.5 rounded font-bold text-[9px]">${c.badge || 'PRO'}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 pr-2 max-w-[200px]">
+                        <div class="flex flex-wrap gap-1 mb-1.5">
+                            ${c.competencies.map(comp => `<span class="bg-slate-100 text-slate-600 text-[9px] px-1.5 py-0.5 rounded font-semibold border border-slate-200">${comp}</span>`).join('')}
+                        </div>
+                        <div class="text-[11px]">
+                            ${localQsCount > 0 
+                                ? `<span class="text-emerald-600 font-extrabold"><i class="fa-solid fa-lock"></i> Изолировано вопросов: ${localQsCount}</span>`
+                                : `<span class="text-slate-400"><i class="fa-solid fa-globe"></i> Использует глобальную базу</span>`
+                            }
+                        </div>
+                    </td>
+                    <td class="py-3 text-right space-x-1 whitespace-nowrap">
+                        <button onclick="copyToClipboard('${testUrl}')" class="bg-orange-50 hover:bg-orange-100 text-brand-orange font-bold px-2.5 py-1.5 rounded-lg transition text-[11px] border border-orange-200">
+                            <i class="fa-regular fa-copy"></i> Копировать линк
+                        </button>
+                        <button onclick="editCampaignWizard('${c.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-2.5 py-1.5 rounded-lg transition text-[11px] border border-slate-300">
+                            <i class="fa-regular fa-edit"></i> Настройки
+                        </button>
+                        ${c.id !== 'default_all' ? `
+                            <button onclick="deleteCampaign('${c.id}')" class="text-rose-400 hover:text-rose-600 p-1.5 rounded-lg transition">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        ` : ''}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        /* ==================== FIREBASE WEB CONFIGURATION CONFIG ==================== */
+        function saveFirebaseConfig() {
+            const inputVal = document.getElementById('firebase-config-input').value.trim();
+            if (!inputVal) {
+                showToast("Пожалуйста, вставьте корректный Firebase JSON", "error");
+                return;
+            }
+            try {
+                // Пытаемся распарсить JSON для проверки валидности
+                const testObj = JSON.parse(inputVal);
+                if (!testObj.apiKey || !testObj.projectId) {
+                    showToast("Неверный формат Firebase конфигурации!", "error");
+                    return;
+                }
+                localStorage.setItem('testograf_custom_firebase_v3', inputVal);
+                showToast("Конфигурация Firebase сохранена. Перезапуск синхронизации...");
+                initFirebaseSync();
+            } catch (err) {
+                showToast("Ошибка разбора JSON! Убедитесь в корректности формата.", "error");
+            }
+        }
+
+        function clearFirebaseConfig() {
+            if (confirm("Вы уверены, что хотите сбросить подключение к Firebase? Приложение вернется к локальной памяти.")) {
+                localStorage.removeItem('testograf_custom_firebase_v3');
+                document.getElementById('firebase-config-input').value = '';
+                showToast("Firebase сброшен. Активирован локальный режим.");
+                initFirebaseSync();
+            }
+        }
+
+        /* ==================== WIZARD: ЛОГИКА ПОШАГОВОГО МАСТЕРА ТЕСТА ==================== */
+        function openTestWizard() {
+            wizardStep = 1;
+            wizardLocalQuestions = [];
+            document.getElementById('wizard-edit-campaign-id').value = '';
+            document.getElementById('wizard-modal-title').textContent = "Мастер создания тестирования";
+            
+            document.getElementById('wz-title').value = '';
+            document.getElementById('wz-subtitle').value = '';
+            document.getElementById('wz-duration').value = '15 минут';
+            document.getElementById('wz-badge').value = 'PRO-уровень';
+            document.getElementById('wz-limit').value = '10';
+            document.getElementById('wz-shuffle').value = 'yes';
+
+            initWizardCompsCheckboxes();
+            updateWizardStepUI();
+
+            const modal = document.getElementById('test-wizard-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function editCampaignWizard(campaignId) {
+            const c = campaigns.find(item => item.id === campaignId);
+            if (!c) return;
+
+            wizardStep = 1;
+            wizardLocalQuestions = c.localQuestions ? [...c.localQuestions] : [];
+            document.getElementById('wizard-edit-campaign-id').value = c.id;
+            document.getElementById('wizard-modal-title').textContent = `Настройки теста: ${c.title}`;
+
+            document.getElementById('wz-title').value = c.title;
+            document.getElementById('wz-subtitle').value = c.subtitle || '';
+            document.getElementById('wz-duration').value = c.duration || '15 минут';
+            document.getElementById('wz-badge').value = c.badge || 'PRO-уровень';
+            document.getElementById('wz-limit').value = c.questionLimit || '10';
+            document.getElementById('wz-shuffle').value = c.shuffle || 'yes';
+
+            initWizardCompsCheckboxes(c.competencies);
+            updateWizardStepUI();
+
+            const modal = document.getElementById('test-wizard-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeTestWizard() {
+            const modal = document.getElementById('test-wizard-modal');
+            if (modal) modal.classList.add('hidden');
+            renderAdminDashboard();
+        }
+
+        function initWizardCompsCheckboxes(preSelectedComps = []) {
+            const container = document.getElementById('wz-comps-checkbox-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            let uniqueComps = [...new Set(questions.map(q => q.competency))];
+            if (uniqueComps.length === 0) {
+                uniqueComps = ["Турция", "Египет", "Вьетнам", "CRM", "Продажи в мессенджерах", "Premium сегмент"];
+            }
+
+            uniqueComps.forEach(comp => {
+                const isChecked = preSelectedComps.length === 0 || preSelectedComps.includes(comp);
+                const label = document.createElement('label');
+                label.className = "flex items-center gap-2 p-1.5 hover:bg-slate-100 rounded cursor-pointer text-xs font-semibold text-slate-700";
+                label.innerHTML = `
+                    <input type="checkbox" name="wz-comp-checkbox" value="${comp}" ${isChecked ? 'checked' : ''} class="rounded border-slate-300 text-brand-orange focus:ring-brand-orange">
+                    <span>${comp}</span>
+                `;
+                container.appendChild(label);
+            });
+        }
+
+        function updateWizardStepUI() {
+            document.getElementById('wizard-step-1').classList.add('hidden');
+            document.getElementById('wizard-step-2').classList.add('hidden');
+            document.getElementById('wizard-step-3').classList.add('hidden');
+
+            document.getElementById(`wizard-step-${wizardStep}`).classList.remove('hidden');
+
+            for (let i = 1; i <= 3; i++) {
+                const indicator = document.getElementById(`wizard-step-indicator-${i}`);
+                if (indicator) {
+                    const badge = indicator.querySelector('span');
+                    if (i === wizardStep) {
+                        badge.className = "w-6 h-6 rounded-full bg-brand-orange text-white flex items-center justify-center font-bold";
+                        indicator.classList.add('text-slate-800');
+                    } else if (i < wizardStep) {
+                        badge.className = "w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold";
+                        indicator.classList.remove('text-slate-800');
+                    } else {
+                        badge.className = "w-6 h-6 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-bold";
+                        indicator.classList.remove('text-slate-800');
+                    }
+                }
+            }
+
+            const prevBtn = document.getElementById('wz-prev-btn');
+            const nextBtn = document.getElementById('wz-next-btn');
+
+            if (wizardStep === 1) {
+                prevBtn.classList.add('hidden');
+                nextBtn.innerHTML = `Продолжить <i class="fa-solid fa-arrow-right ml-1"></i>`;
+            } else if (wizardStep === 2) {
+                prevBtn.classList.remove('hidden');
+                nextBtn.innerHTML = `Завершить & Опубликовать <i class="fa-solid fa-cloud-arrow-up ml-1"></i>`;
+                renderWizardLocalQuestionsList();
+            } else if (wizardStep === 3) {
+                prevBtn.classList.add('hidden');
+                nextBtn.innerHTML = `Готово (Закрыть)`;
+            }
+        }
+
+        function wizardNextStep() {
+            if (wizardStep === 1) {
+                const title = document.getElementById('wz-title').value.trim();
+                if (!title) {
+                    showToast("Укажите заголовок тестирования!", "error");
+                    return;
+                }
+                wizardStep = 2;
+                updateWizardStepUI();
+            } else if (wizardStep === 2) {
+                saveWizardCampaign();
+                wizardStep = 3;
+                updateWizardStepUI();
+            } else if (wizardStep === 3) {
+                closeTestWizard();
+            }
+        }
+
+        function wizardPrevStep() {
+            if (wizardStep > 1) {
+                wizardStep--;
+                updateWizardStepUI();
+            }
+        }
+
+        function renderWizardLocalQuestionsList() {
+            const countDisplay = document.getElementById('wz-local-count');
+            if (countDisplay) countDisplay.textContent = wizardLocalQuestions.length;
+
+            const container = document.getElementById('wz-local-questions-list');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (wizardLocalQuestions.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center text-slate-400">Нет изолированных вопросов. Будет задействована Глобальная База.</div>`;
+                return;
+            }
+
+            wizardLocalQuestions.forEach((q, idx) => {
+                const item = document.createElement('div');
+                item.className = "p-3 hover:bg-slate-50 transition flex items-center justify-between gap-4";
+                item.innerHTML = `
+                    <div class="truncate flex-1">
+                        <span class="font-bold text-slate-700">#${idx+1} [${q.competency}]</span>
+                        <span class="text-slate-600 ml-1 truncate">${q.question}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="openEditQuestionModal(${q.id}, 'wizard')" class="text-indigo-600 hover:text-indigo-900 font-bold">Править</button>
+                        <button type="button" onclick="deleteWizardLocalQuestion(${q.id})" class="text-rose-500 hover:text-rose-700 font-bold"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function addWizardManualQuestion() {
+            const comp = prompt("Укажите компетенцию (например: Турция):", "Турция");
+            if (!comp) return;
+            const text = prompt("Текст вопроса:");
+            if (!text) return;
+            const optA = prompt("Вариант ответа A:");
+            const optB = prompt("Вариант ответа B:");
+            const optC = prompt("Вариант ответа C (опционально):") || "";
+            const optD = prompt("Вариант ответа D (опционально):") || "";
+            const correct = prompt("Укажите букву верного ответа (A, B, C или D):", "A").toUpperCase();
+
+            if (!["A", "B", "C", "D"].includes(correct)) {
+                showToast("Неверный формат правильного ответа!", "error");
+                return;
+            }
+
+            const newQ = {
+                id: Date.now() + Math.floor(Math.random()*1000),
+                competency: comp,
+                question: text,
+                options: { A: optA, B: optB, C: optC, D: optD },
+                correct: correct
+            };
+
+            wizardLocalQuestions.push(newQ);
+            renderWizardLocalQuestionsList();
+            showToast("Вопрос успешно добавлен в контейнер");
+        }
+
+        function deleteWizardLocalQuestion(id) {
+            wizardLocalQuestions = wizardLocalQuestions.filter(q => q.id !== id);
+            renderWizardLocalQuestionsList();
+        }
+
+        function clearWzLocalQuestions() {
+            if (confirm("Вы уверены, что хотите стереть все вопросы из этого контейнера?")) {
+                wizardLocalQuestions = [];
+                renderWizardLocalQuestionsList();
+            }
+        }
+
+        async function saveWizardCampaign() {
+            const editId = document.getElementById('wizard-edit-campaign-id').value;
+            const title = document.getElementById('wz-title').value.trim();
+            const subtitle = document.getElementById('wz-subtitle').value.trim();
+            const duration = document.getElementById('wz-duration').value.trim() || '15 минут';
+            const badge = document.getElementById('wz-badge').value.trim() || 'PRO-уровень';
+            const limit = parseInt(document.getElementById('wz-limit').value) || 10;
+            const shuffleVal = document.getElementById('wz-shuffle').value;
+
+            const selectedComps = Array.from(document.querySelectorAll('input[name="wz-comp-checkbox"]:checked')).map(el => el.value);
+
+            let campaignObj;
+            if (editId) {
+                campaignObj = campaigns.find(item => item.id === editId);
+                if (campaignObj) {
+                    campaignObj.title = title;
+                    campaignObj.subtitle = subtitle;
+                    campaignObj.duration = duration;
+                    campaignObj.badge = badge;
+                    campaignObj.questionLimit = limit;
+                    campaignObj.shuffle = shuffleVal;
+                    campaignObj.competencies = selectedComps;
+                    campaignObj.localQuestions = [...wizardLocalQuestions];
+                }
+            } else {
+                campaignObj = {
+                    id: 'camp_' + Date.now(),
+                    title: title,
+                    subtitle: subtitle,
+                    duration: duration,
+                    badge: badge,
+                    questionLimit: limit,
+                    shuffle: shuffleVal,
+                    competencies: selectedComps,
+                    localQuestions: [...wizardLocalQuestions],
+                    created: new Date().toLocaleDateString('ru-RU')
+                };
+                campaigns.push(campaignObj);
+            }
+
+            // Синхронизация с Firebase (RULE 1 & RULE 3)
+            if (isFirebaseActive && db) {
+                try {
+                    const campCol = doc(db, 'artifacts', appId, 'public', 'data', 'campaigns', campaignObj.id);
+                    await setDoc(campCol, campaignObj);
+                } catch (e) {
+                    console.error("Ошибка сохранения кампании в Firebase:", e);
+                }
+            }
+
+            localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
+            
+            const finalUrl = getCampaignShareUrl(campaignObj);
+            document.getElementById('wz-generated-link-display').textContent = finalUrl;
+            
+            showToast(`Тест "${title}" сохранен!`);
+        }
+
+        function copyWizardLink() {
+            const linkText = document.getElementById('wz-generated-link-display').textContent;
+            copyToClipboard(linkText);
+        }
+
+        /* ==================== ИНСТРУМЕНТ ТОЧЕЧНОЙ КОРРЕКТИРОВКИ ВОПРОСА ==================== */
+        function openEditQuestionModal(questionId, source = 'global') {
+            let targetQ = null;
+            if (source === 'global') {
+                targetQ = questions.find(q => q.id === questionId);
+            } else if (source === 'wizard') {
+                targetQ = wizardLocalQuestions.find(q => q.id === questionId);
+            }
+
+            if (!targetQ) return;
+
+            document.getElementById('eq-id').value = targetQ.id;
+            document.getElementById('eq-source').value = source;
+            document.getElementById('eq-comp').value = targetQ.competency;
+            document.getElementById('eq-correct').value = targetQ.correct;
+            document.getElementById('eq-text').value = targetQ.question;
+            document.getElementById('eq-optA').value = targetQ.options.A || '';
+            document.getElementById('eq-optB').value = targetQ.options.B || '';
+            document.getElementById('eq-optC').value = targetQ.options.C || '';
+            document.getElementById('eq-optD').value = targetQ.options.D || '';
+
+            const modal = document.getElementById('edit-question-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeEditQuestionModal() {
+            const modal = document.getElementById('edit-question-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function saveEditedQuestion(e) {
+            e.preventDefault();
+            const id = parseInt(document.getElementById('eq-id').value);
+            const source = document.getElementById('eq-source').value;
+            const comp = document.getElementById('eq-comp').value.trim();
+            const correct = document.getElementById('eq-correct').value;
+            const text = document.getElementById('eq-text').value.trim();
+            const optA = document.getElementById('eq-optA').value.trim();
+            const optB = document.getElementById('eq-optB').value.trim();
+            const optC = document.getElementById('eq-optC').value.trim();
+            const optD = document.getElementById('eq-optD').value.trim();
+
+            const updatedQ = {
+                id: id,
+                competency: comp,
+                question: text,
+                options: { A: optA, B: optB, C: optC, D: optD },
+                correct: correct
+            };
+
+            if (source === 'global') {
+                const idx = questions.findIndex(item => item.id === id);
+                if (idx !== -1) {
+                    questions[idx] = updatedQ;
+                    localStorage.setItem('testograf_questions_v2', JSON.stringify(questions));
+
+                    if (isFirebaseActive && db) {
+                        try {
+                            const qDoc = doc(db, 'artifacts', appId, 'public', 'data', 'questions', id.toString());
+                            await setDoc(qDoc, updatedQ);
+                        } catch (e) {
+                            console.error("Ошибка сохранения вопроса в Firebase:", e);
+                        }
+                    }
+
+                    showToast("Вопрос успешно изменен в Глобальной Базе");
+                    renderAdminQuestionsPool();
+                }
+            } else if (source === 'wizard') {
+                const q = wizardLocalQuestions.find(item => item.id === id);
+                if (q) {
+                    q.competency = comp;
+                    q.correct = correct;
+                    q.question = text;
+                    q.options = { A: optA, B: optB, C: optC, D: optD };
+                    showToast("Вопрос успешно изменен внутри этого теста");
+                    renderWizardLocalQuestionsList();
+                }
+            }
+
+            closeEditQuestionModal();
+        }
+
+        /* ==================== УПРАВЛЕНИЕ БАЗОЙ ДАННЫХ И ИМПОРТ ==================== */
+        async function deleteCampaign(id) {
+            if (confirm("Вы уверены, что хотите удалить этот контейнер тестирования?")) {
+                campaigns = campaigns.filter(c => c.id !== id);
+                localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
+
+                if (isFirebaseActive && db) {
+                    try {
+                        const campDoc = doc(db, 'artifacts', appId, 'public', 'data', 'campaigns', id);
+                        await deleteDoc(campDoc);
+                    } catch (e) {
+                        console.error("Ошибка удаления кампании из Firebase:", e);
+                    }
+                }
+
+                showToast("Тест удален", "info");
+                renderAdminDashboard();
+            }
+        }
+
+        async function deleteQuestion(id) {
+            questions = questions.filter(q => q.id !== id);
+            localStorage.setItem('testograf_questions_v2', JSON.stringify(questions));
+
+            if (isFirebaseActive && db) {
+                try {
+                    const qDoc = doc(db, 'artifacts', appId, 'public', 'data', 'questions', id.toString());
+                    await deleteDoc(qDoc);
+                } catch (e) {
+                    console.error("Ошибка удаления вопроса из Firebase:", e);
+                }
+            }
+
+            showToast("Вопрос удален", "info");
+            renderAdminDashboard();
+        }
+
+        async function deleteCandidate(id) {
+            if (confirm("Вы уверены, что хотите безвозвратно удалить результаты кандидата?")) {
+                candidatesDb = candidatesDb.filter(c => c.id !== id);
+                localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
+
+                if (isFirebaseActive && db) {
+                    try {
+                        const candDoc = doc(db, 'artifacts', appId, 'public', 'data', 'candidates', id);
+                        await deleteDoc(candDoc);
+                    } catch (e) {
+                        console.error("Ошибка удаления кандидата из Firebase:", e);
+                    }
+                }
+
+                showToast("Запись кандидата удалена", "info");
+                renderAdminDashboard();
+            }
+        }
+
+        async function resetToDefaultQuestions() {
+            if (confirm("Сбросить базу вопросов на стандартные? Все локальные и облачные вопросы будут перезаписаны.")) {
+                questions = [...defaultQuestions];
+                localStorage.setItem('testograf_questions_v2', JSON.stringify(questions));
+
+                if (isFirebaseActive && db) {
+                    try {
+                        // Очистка и заливка в Firebase по одному документу (RULE 2)
+                        for (let q of defaultQuestions) {
+                            const qDoc = doc(db, 'artifacts', appId, 'public', 'data', 'questions', q.id.toString());
+                            await setDoc(qDoc, q);
+                        }
+                    } catch (e) {
+                        console.error("Ошибка заливки дефолтных вопросов в Firebase:", e);
+                    }
+                }
+
+                showToast("Установлены вопросы по умолчанию");
+                renderAdminDashboard();
+            }
+        }
+
+        async function handleManualQuestionAdd(e) {
+            e.preventDefault();
+            const comp = document.getElementById('mq-comp').value.trim();
+            const text = document.getElementById('mq-text').value.trim();
+            const optA = document.getElementById('mq-optA').value.trim();
+            const optB = document.getElementById('mq-optB').value.trim();
+            const optC = document.getElementById('mq-optC').value.trim();
+            const optD = document.getElementById('mq-optD').value.trim();
+            const correct = document.getElementById('mq-correct').value;
+
+            const newQ = {
+                id: Date.now(),
+                competency: comp,
+                question: text,
+                options: { A: optA, B: optB, C: optC, D: optD },
+                correct: correct
+            };
+
+            questions.push(newQ);
+            localStorage.setItem('testograf_questions_v2', JSON.stringify(questions));
+
+            if (isFirebaseActive && db) {
+                try {
+                    const qDoc = doc(db, 'artifacts', appId, 'public', 'data', 'questions', newQ.id.toString());
+                    await setDoc(qDoc, newQ);
+                } catch (e) {
+                    console.error("Ошибка записи вопроса в Firebase:", e);
+                }
+            }
+
+            showToast("Вопрос добавлен в Глобальную Базу");
+            e.target.reset();
+            renderAdminDashboard();
+        }
+
+        async function handleExcelUpload(e, target = 'global') {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(evt) {
+                try {
+                    const data = evt.target.result;
+                    const workbook = XLSX.read(data, { type: 'binary' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawJson = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (rawJson.length === 0) {
+                        showToast("Выбранный файл Excel пуст!", "error");
+                        return;
+                    }
+
+                    const parsedQuestions = rawJson.map((row, i) => {
+                        return {
+                            id: Date.now() + i + Math.floor(Math.random() * 1000),
+                            competency: row.Competency || row["Компетенция"] || "Общее",
+                            question: row.Question || row["Вопрос"] || "Не заполнено",
+                            options: {
+                                A: row.OptionA || row["ВариантА"] || "Да",
+                                B: row.OptionB || row["ВариантБ"] || "Нет",
+                                C: row.OptionC || row["ВариантВ"] || "",
+                                D: row.OptionD || row["ВариантГ"] || ""
+                            },
+                            correct: (row.Correct || row["Верный"] || "A").toString().trim().toUpperCase()
+                        };
+                    });
+
+                    if (target === 'global') {
+                        questions = [...questions, ...parsedQuestions];
+                        localStorage.setItem('testograf_questions_v2', JSON.stringify(questions));
+
+                        if (isFirebaseActive && db) {
+                            try {
+                                showToast("Началась облачная выгрузка вопросов...");
+                                for (let q of parsedQuestions) {
+                                    const qDoc = doc(db, 'artifacts', appId, 'public', 'data', 'questions', q.id.toString());
+                                    await setDoc(qDoc, q);
+                                }
+                            } catch (e) {
+                                console.error("Ошибка облачной загрузки Excel:", e);
+                            }
+                        }
+
+                        showToast(`Импортировано в глобальную базу: ${parsedQuestions.length} вопр.`);
+                    } else if (target === 'wizard') {
+                        wizardLocalQuestions = [...wizardLocalQuestions, ...parsedQuestions];
+                        renderWizardLocalQuestionsList();
+                        showToast(`Добавлено в локальный тест: ${parsedQuestions.length} вопр.`);
+                    }
+
+                    renderAdminDashboard();
+                } catch (err) {
+                    console.error(err);
+                    showToast("Не удалось обработать Excel-файл!", "error");
+                }
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        /* ==================== АВТОНОМНАЯ НАСТРОЙКА КАМПАНИЙ ==================== */
+        function initCampaignConfiguration() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const testId = urlParams.get('testId');
+
+                if (testId) {
+                    // Распаковка зашифрованных вопросов прямо из ссылки для полной автономности соискателя!
+                    const embeddedQsStr = urlParams.get('qs');
+                    if (embeddedQsStr) {
+                        try {
+                            const decodedString = decodeURIComponent(escape(atob(embeddedQsStr)));
+                            const decodedQs = JSON.parse(decodedString);
+                            
+                            if (Array.isArray(decodedQs) && decodedQs.length > 0) {
+                                decodedQs.forEach(newQ => {
+                                    if (!questions.some(q => q.id === newQ.id)) {
+                                        questions.push(newQ);
+                                    }
+                                });
+                                localStorage.setItem('testograf_questions_v2', JSON.stringify(questions));
+                            }
+                        } catch (err) {
+                            console.error("Ошибка парсинга зашифрованных вопросов из URL:", err);
+                        }
+                    }
+
+                    let match = campaigns.find(c => c.id === testId);
+                    if (!match && urlParams.get('title')) {
+                        const compsStr = urlParams.get('comps') || '';
+                        match = {
+                            id: testId,
+                            title: urlParams.get('title'),
+                            subtitle: urlParams.get('subtitle') || '',
+                            duration: urlParams.get('duration') || '15 минут',
+                            badge: urlParams.get('badge') || 'PRO',
+                            questionLimit: parseInt(urlParams.get('limit')) || 10,
+                            competencies: compsStr ? compsStr.split(',') : [],
+                            localQuestions: [],
+                            created: new Date().toLocaleDateString('ru-RU')
+                        };
+                        campaigns.push(match);
+                        localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
+                    }
+
+                    if (match) {
+                        activeCampaign = match;
+                        
+                        const sourcePool = (match.localQuestions && match.localQuestions.length > 0) 
+                            ? match.localQuestions 
+                            : questions.filter(q => match.competencies.includes(q.competency));
+
+                        const limit = match.questionLimit || 10;
+                        const shuffled = (match.shuffle === 'no') ? [...sourcePool] : shuffleArray(sourcePool);
+                        activeCampaignQuestions = shuffled.slice(0, limit);
+
+                        document.getElementById('camp-badge-element').textContent = activeCampaign.badge || "PRO";
+                        document.getElementById('camp-title-element').textContent = activeCampaign.title;
+                        document.getElementById('camp-subtitle-text').textContent = activeCampaign.subtitle || "Проверьте свои знания.";
+                        document.getElementById('camp-duration-text').textContent = activeCampaign.duration || "15 минут";
+                        document.getElementById('camp-questions-count').textContent = activeCampaignQuestions.length;
+
+                        showToast(`Активирован контейнер: "${activeCampaign.title}"`);
+                        return;
+                    }
+                }
+
+                // Загрузка по умолчанию
+                activeCampaign = null;
+                const limit = 12;
+                const shuffled = shuffleArray(questions);
+                activeCampaignQuestions = shuffled.slice(0, limit);
+
+                document.getElementById('camp-badge-element').textContent = "Интеллектуальная оценка";
+                document.getElementById('camp-title-element').textContent = "Узнайте свои реальные компетенции";
+                document.getElementById('camp-subtitle-text').textContent = "Наш алгоритм точечно выявляет пробелы в знаниях. Это избавляет от прохождения долгих общих курсов на 10 часов.";
+                document.getElementById('camp-duration-text').textContent = "10 минут";
+                document.getElementById('camp-questions-count').textContent = activeCampaignQuestions.length;
+            } catch (e) {
+                console.error("Ошибка инициализации конфигурации кампании", e);
+            }
+        }
+
+        // Подрубаем все нужные глобальные экспорты для работы inline-событий в HTML
+        window.registerLogoClick = registerLogoClick;
+        window.switchView = switchView;
+        window.verifyAdminPasscode = verifyAdminPasscode;
+        window.closeAdminLoginModal = closeAdminLoginModal;
+        window.toggleStaffCount = toggleStaffCount;
+        window.startTest = startTest;
+        window.previousQuestion = previousQuestion;
+        window.nextQuestion = nextQuestion;
+        window.resetTestingFlow = resetTestingFlow;
+        window.exportCandidatesToExcel = exportCandidatesToExcel;
+        window.openTestWizard = openTestWizard;
+        window.downloadExcelTemplate = downloadExcelTemplate;
+        window.handleExcelUpload = handleExcelUpload;
+        window.handleManualQuestionAdd = handleManualQuestionAdd;
+        window.openEditQuestionModal = openEditQuestionModal;
+        window.closeEditQuestionModal = closeEditQuestionModal;
+        window.saveEditedQuestion = saveEditedQuestion;
+        window.deleteCandidate = deleteCandidate;
+        window.deleteQuestion = deleteQuestion;
+        window.resetToDefaultQuestions = resetToDefaultQuestions;
+        window.switchAdminTab = switchAdminTab;
+        window.closeSkillsAnalysisModal = closeSkillsAnalysisModal;
+        window.openAdminLoginModal = openAdminLoginModal;
+        window.wizardPrevStep = wizardPrevStep;
+        window.wizardNextStep = wizardNextStep;
+        window.clearWzLocalQuestions = clearWzLocalQuestions;
+        window.addWizardManualQuestion = addWizardManualQuestion;
+        window.deleteWizardLocalQuestion = deleteWizardLocalQuestion;
+        window.copyWizardLink = copyWizardLink;
+        window.deleteCampaign = deleteCampaign;
+        window.copyToClipboard = copyToClipboard;
+        window.saveFirebaseConfig = saveFirebaseConfig;
+        window.clearFirebaseConfig = clearFirebaseConfig;
+
+        async function initApp() {
+            // Подгружаем сохраненный конфиг Firebase в инпут при наличии
+            const savedConfig = localStorage.getItem('testograf_custom_firebase_v3');
+            const inputField = document.getElementById('firebase-config-input');
+            if (savedConfig && inputField) {
+                inputField.value = savedConfig;
+            }
+
+            try { await initFirebaseSync(); } catch(e) { console.error(e); }
+            try { initCampaignConfiguration(); } catch(e) {}
+            try { switchView('candidate-reg'); } catch(e) {}
+            try { renderAdminDashboard(); } catch(e) {}
+        }
+
+        // Обеспечиваем безопасный старт
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+
+        // Шорткат Ctrl+Shift+A для админки
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') ||
+                (e.altKey && e.shiftKey && e.key.toLowerCase() === 'a')) {
+                e.preventDefault();
+                openAdminLoginModal();
+            }
+        });
+    </script>
+</body>
+</html>
