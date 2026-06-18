@@ -19,18 +19,20 @@ export default async (request) => {
     const rawBody = await request.text();
     if (rawBody.length > 2_000_000) return jsonResponse({ error: "Test payload is too large" }, 413);
 
-    let campaign;
+    let payload;
     try {
-      campaign = JSON.parse(rawBody);
+      payload = JSON.parse(rawBody);
     } catch {
       return jsonResponse({ error: "Invalid JSON" }, 400);
     }
+    const campaign = payload?.campaign || payload;
     if (!campaign?.id || !campaign?.title || !Array.isArray(campaign?.localQuestions)) {
       return jsonResponse({ error: "Invalid test data" }, 400);
     }
 
-    const id = crypto.randomUUID().replaceAll("-", "").slice(0, 10);
-    await store.setJSON(id, campaign);
+    const id = String(campaign.id).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40);
+    if (id.length < 6) return jsonResponse({ error: "Invalid test id" }, 400);
+    await store.setJSON(id, { campaign, firebaseConfig: payload?.firebaseConfig || null });
     return jsonResponse({ id });
   }
 

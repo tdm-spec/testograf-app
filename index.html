@@ -842,6 +842,10 @@
             if (typeof __firebase_config !== 'undefined' && __firebase_config) {
                 try { firebaseConfig = JSON.parse(__firebase_config); } catch(e) {}
             }
+
+            if (!firebaseConfig && sharedFirebaseConfig) {
+                firebaseConfig = sharedFirebaseConfig;
+            }
             
             // 2. Проверяем пользовательский сохраненный конфиг в localStorage
             if (!firebaseConfig) {
@@ -951,7 +955,9 @@
                     list.push({ id: doc.id, ...doc.data() });
                 });
                 if (list.length > 0) {
-                    campaigns = list;
+                    campaigns = publicLinkedCampaign
+                        ? [...list.filter(item => item.id !== publicLinkedCampaign.id), publicLinkedCampaign]
+                        : list;
                     localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
                 }
                 
@@ -1036,6 +1042,8 @@
         let testTimerRemainingSeconds = null;
         let activeChartInstance = null;
         let shortLoadedCampaignId = null;
+        let publicLinkedCampaign = null;
+        let sharedFirebaseConfig = null;
 
         // Переменные для мастера создания теста (Wizard State)
         let wizardStep = 1;
@@ -1463,10 +1471,15 @@
 
         async function createShortCampaignUrl(campaign) {
             const endpoint = window.location.protocol === 'file:' ? 'https://psn-exam.netlify.app/api/tests' : '/api/tests';
+            const savedFirebaseConfig = localStorage.getItem('testograf_custom_firebase_v3');
+            let firebaseConfig = null;
+            try { firebaseConfig = savedFirebaseConfig ? JSON.parse(savedFirebaseConfig) : null; } catch(e) {}
+            const publicCampaign = JSON.parse(JSON.stringify(campaign));
+            delete publicCampaign.shortEditToken;
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify(campaign)
+                body: JSON.stringify({ campaign: publicCampaign, firebaseConfig })
             });
             if (!response.ok) throw new Error(`Short link service returned ${response.status}`);
             const result = await response.json();
@@ -1482,11 +1495,14 @@
             if (!shortCode) return;
             const response = await fetch(`/api/tests?id=${encodeURIComponent(shortCode)}`);
             if (!response.ok) throw new Error(`Не удалось загрузить тест (${response.status})`);
-            const campaign = await response.json();
+            const storedTest = await response.json();
+            const campaign = storedTest.campaign || storedTest;
+            sharedFirebaseConfig = storedTest.firebaseConfig || null;
             const existingIndex = campaigns.findIndex(item => item.id === campaign.id);
             if (existingIndex >= 0) campaigns[existingIndex] = campaign;
             else campaigns.push(campaign);
             shortLoadedCampaignId = campaign.id;
+            publicLinkedCampaign = campaign;
             localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
         }
 
@@ -3104,7 +3120,7 @@
                         match.candidateFields = embeddedFields;
                         match.candidateFieldsSchemaVersion = parseInt(urlParams.get('fieldSchema'), 10) || 2;
                     }
-                    if (!match && urlParams.get('title')) {
+                    if (urlParams.get('title')) {
                         const compsStr = urlParams.get('comps') || '';
                         match = {
                             id: testId,
@@ -3122,7 +3138,10 @@
                             candidateFieldsSchemaVersion: parseInt(urlParams.get('fieldSchema'), 10) || 2,
                             created: new Date().toLocaleDateString('ru-RU')
                         };
-                        campaigns.push(match);
+                        const existingIndex = campaigns.findIndex(item => item.id === testId);
+                        if (existingIndex >= 0) campaigns[existingIndex] = match;
+                        else campaigns.push(match);
+                        publicLinkedCampaign = match;
                         localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
                     }
 
