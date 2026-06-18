@@ -1035,6 +1035,7 @@
         let testTimerSeconds = 0;
         let testTimerRemainingSeconds = null;
         let activeChartInstance = null;
+        let shortLoadedCampaignId = null;
 
         // Переменные для мастера создания теста (Wizard State)
         let wizardStep = 1;
@@ -1413,6 +1414,7 @@
 
         // Вшиваем вопросы и параметры прямо в URL для полной автономности и сохранности!
         function getCampaignShareUrl(c) {
+            if (c.shortCode) return getShortCampaignUrl(c.shortCode);
             const params = new URLSearchParams();
             params.set('testId', c.id);
             params.set('title', c.title);
@@ -1429,6 +1431,7 @@
             if (c.candidateFields?.length) {
                 params.set('fields', btoa(unescape(encodeURIComponent(JSON.stringify(c.candidateFields)))));
             }
+            params.set('fieldSchema', c.candidateFieldsSchemaVersion || 2);
 
             // ИСПРАВЛЕНИЕ ОШИБКИ HTTP 414 (URI Too Long):
             // Кодируем в ссылку только УНИКАЛЬНЫЕ локальные вопросы (если они созданы).
@@ -1449,6 +1452,42 @@
             // URL fragments stay in the browser, so even tests with many questions avoid HTTP 414.
             const baseUrl = window.location.href.split(/[?#]/)[0];
             return baseUrl + '#' + params.toString();
+        }
+
+        function getShortCampaignUrl(shortCode) {
+            const baseUrl = window.location.protocol === 'file:'
+                ? 'https://psn-exam.netlify.app/'
+                : window.location.href.split(/[?#]/)[0];
+            return `${baseUrl}#t=${encodeURIComponent(shortCode)}`;
+        }
+
+        async function createShortCampaignUrl(campaign) {
+            const endpoint = window.location.protocol === 'file:' ? 'https://psn-exam.netlify.app/api/tests' : '/api/tests';
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(campaign)
+            });
+            if (!response.ok) throw new Error(`Short link service returned ${response.status}`);
+            const result = await response.json();
+            if (!result.id) throw new Error('Short link id is missing');
+            campaign.shortCode = result.id;
+            localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
+            return getShortCampaignUrl(result.id);
+        }
+
+        async function loadShortCampaignFromUrl() {
+            const hashParams = new URLSearchParams(window.location.hash.replace(/^#\??/, ''));
+            const shortCode = hashParams.get('t');
+            if (!shortCode) return;
+            const response = await fetch(`/api/tests?id=${encodeURIComponent(shortCode)}`);
+            if (!response.ok) throw new Error(`Не удалось загрузить тест (${response.status})`);
+            const campaign = await response.json();
+            const existingIndex = campaigns.findIndex(item => item.id === campaign.id);
+            if (existingIndex >= 0) campaigns[existingIndex] = campaign;
+            else campaigns.push(campaign);
+            shortLoadedCampaignId = campaign.id;
+            localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
         }
 
         function registerLogoClick() {
@@ -2217,7 +2256,7 @@
             wizardStep = 1;
             wizardLocalQuestions = [];
             wizardSurveyQuestions = [];
-            wizardCandidateFields = [];
+            wizardCandidateFields = cloneCandidateFields(DEFAULT_CANDIDATE_FIELDS);
             document.getElementById('wizard-edit-campaign-id').value = '';
             document.getElementById('wizard-modal-title').textContent = "Мастер создания тестирования";
             
@@ -2232,6 +2271,7 @@
             document.getElementById('wz-survey-position').value = 'before';
             document.getElementById('wz-survey-required').value = 'yes';
             document.getElementById('wz-survey-free-required').value = 'no';
+            resetWizardCandidateFieldEditor();
             renderWizardCandidateFieldsList();
 
             initWizardCompsCheckboxes();
@@ -2248,7 +2288,7 @@
             wizardStep = 1;
             wizardLocalQuestions = c.localQuestions ? [...c.localQuestions] : [];
             wizardSurveyQuestions = c.survey?.questions ? [...c.survey.questions] : [];
-            wizardCandidateFields = c.candidateFields ? [...c.candidateFields] : [];
+            wizardCandidateFields = getCampaignCandidateFields(c);
             document.getElementById('wizard-edit-campaign-id').value = c.id;
             document.getElementById('wizard-modal-title').textContent = `Настройки теста: ${c.title}`;
 
@@ -2263,6 +2303,7 @@
             document.getElementById('wz-survey-position').value = c.survey?.position || 'before';
             document.getElementById('wz-survey-required').value = c.survey?.required === false ? 'no' : 'yes';
             document.getElementById('wz-survey-free-required').value = c.survey?.freeRequired ? 'yes' : 'no';
+            resetWizardCandidateFieldEditor();
             renderWizardCandidateFieldsList();
 
             initWizardCompsCheckboxes(c.competencies);
@@ -2665,6 +2706,7 @@
                     campaignObj.localQuestions = [...wizardLocalQuestions];
                     campaignObj.survey = surveyConfig;
                     campaignObj.candidateFields = [...wizardCandidateFields];
+                    campaignObj.candidateFieldsSchemaVersion = 2;
                 }
             } else {
                 campaignObj = {
@@ -2680,6 +2722,7 @@
                     localQuestions: [...wizardLocalQuestions],
                     survey: surveyConfig,
                     candidateFields: [...wizardCandidateFields],
+                    candidateFieldsSchemaVersion: 2,
                     created: new Date().toLocaleDateString('ru-RU')
                 };
                 campaigns.push(campaignObj);
@@ -2697,7 +2740,15 @@
 
             localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
             
-            const finalUrl = getCampaignShareUrl(campaignObj);
+            let finalUrl;
+            try {
+                finalUrl = await createShortCampaignUrl(campaignObj);
+            } catch (error) {
+                console.warn('Короткая ссылка недоступна, используется автономная ссылка:', error);
+                campaignObj.shortCode = '';
+                finalUrl = getCampaignShareUrl(campaignObj);
+                showToast('Короткая ссылка временно недоступна. Создана резервная ссылка.', 'info');
+            }
             document.getElementById('wz-generated-link-display').textContent = finalUrl;
             
             showToast(`Тест "${title}" сохранен!`);
@@ -3001,7 +3052,7 @@
                 const hashParams = new URLSearchParams(window.location.hash.replace(/^#\??/, ''));
                 const queryParams = new URLSearchParams(window.location.search);
                 const urlParams = hashParams.has('testId') ? hashParams : queryParams;
-                const testId = urlParams.get('testId');
+                const testId = urlParams.get('testId') || shortLoadedCampaignId;
 
                 if (testId) {
                     // Распаковка зашифрованных вопросов прямо из ссылки для полной автономности соискателя!
@@ -3035,6 +3086,7 @@
                     }
                     if (match) {
                         match.timeLimitMinutes = parseInt(urlParams.get('timeLimit'), 10) || match.timeLimitMinutes || 0;
+                        match.candidateFieldsSchemaVersion = parseInt(urlParams.get('fieldSchema'), 10) || match.candidateFieldsSchemaVersion;
                         if (embeddedSurvey) match.survey = embeddedSurvey;
                     }
                     const fieldsStr = urlParams.get('fields');
@@ -3046,7 +3098,10 @@
                             console.error("Candidate fields parse error:", err);
                         }
                     }
-                    if (match && embeddedFields) match.candidateFields = embeddedFields;
+                    if (match && embeddedFields) {
+                        match.candidateFields = embeddedFields;
+                        match.candidateFieldsSchemaVersion = parseInt(urlParams.get('fieldSchema'), 10) || 2;
+                    }
                     if (!match && urlParams.get('title')) {
                         const compsStr = urlParams.get('comps') || '';
                         match = {
@@ -3062,6 +3117,7 @@
                             localQuestions: embeddedQuestions,
                             survey: embeddedSurvey,
                             candidateFields: embeddedFields || [],
+                            candidateFieldsSchemaVersion: parseInt(urlParams.get('fieldSchema'), 10) || 2,
                             created: new Date().toLocaleDateString('ru-RU')
                         };
                         campaigns.push(match);
@@ -3150,7 +3206,9 @@
         window.clearWizardSurveyQuestions = clearWizardSurveyQuestions;
         window.handleSurveyExcelUpload = handleSurveyExcelUpload;
         window.addWizardCandidateField = addWizardCandidateField;
+        window.editWizardCandidateField = editWizardCandidateField;
         window.deleteWizardCandidateField = deleteWizardCandidateField;
+        window.cancelWizardCandidateFieldEdit = cancelWizardCandidateFieldEdit;
         window.toggleWizardCandidateFieldOptions = toggleWizardCandidateFieldOptions;
         window.copyWizardLink = copyWizardLink;
         window.deleteCampaign = deleteCampaign;
@@ -3166,6 +3224,10 @@
                 inputField.value = savedConfig;
             }
 
+            try { await loadShortCampaignFromUrl(); } catch(e) {
+                console.error(e);
+                showToast('Не удалось загрузить тест по короткой ссылке.', 'error');
+            }
             try { await initFirebaseSync(); } catch(e) { console.error(e); }
             try { initCampaignConfiguration(); } catch(e) {}
             try { switchView('candidate-reg'); } catch(e) {}
