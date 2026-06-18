@@ -183,7 +183,7 @@
                     </div>
                 </div>
                 <div class="text-right">
-                    <span class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Прошло времени</span>
+                    <span id="test-timer-label" class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Прошло времени</span>
                     <span class="font-mono text-sm font-black text-slate-800" id="test-timer">00:00</span>
                 </div>
             </div>
@@ -1665,6 +1665,8 @@
             testTimerRemainingSeconds = activeCampaign?.timeLimitMinutes ? activeCampaign.timeLimitMinutes * 60 : null;
             clearInterval(testTimerInterval);
             const timerEl = document.getElementById('test-timer');
+            const timerLabelEl = document.getElementById('test-timer-label');
+            if (timerLabelEl) timerLabelEl.textContent = testTimerRemainingSeconds !== null ? 'Осталось времени' : 'Прошло времени';
             if (timerEl) timerEl.textContent = testTimerRemainingSeconds ? formatSeconds(testTimerRemainingSeconds) : '00:00';
             testTimerInterval = setInterval(() => {
                 testTimerSeconds++;
