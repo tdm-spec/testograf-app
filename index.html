@@ -90,7 +90,7 @@
     <header class="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <!-- Кликните 5 раз по логотипу для авторизации в админке -->
-            <div class="flex items-center cursor-pointer select-none" id="brand-logo" onclick="registerLogoClick()" title="Кликните 5 раз для входа администратора">
+            <div class="flex items-center cursor-pointer select-none" id="brand-logo" onclick="registerLogoClick()">
                 <div class="h-12 w-[190px] flex items-center justify-start transition-all duration-150 hover:opacity-80 active:scale-95">
                     <img src="assets/psn-logo-orange.svg" alt="Поехали с нами" class="block max-h-full max-w-full object-contain">
                 </div>
@@ -1444,8 +1444,10 @@
                 }
             }
 
-            const baseUrl = window.location.href.split('?')[0];
-            return baseUrl + '?' + params.toString();
+            // Keep the complete test portable without sending its large payload to Netlify.
+            // URL fragments stay in the browser, so even tests with many questions avoid HTTP 414.
+            const baseUrl = window.location.href.split(/[?#]/)[0];
+            return baseUrl + '#' + params.toString();
         }
 
         function registerLogoClick() {
@@ -2903,7 +2905,11 @@
         /* ==================== АВТОНОМНАЯ НАСТРОЙКА КАМПАНИЙ ==================== */
         function initCampaignConfiguration() {
             try {
-                const urlParams = new URLSearchParams(window.location.search);
+                // New links store the payload in the fragment to avoid server URL-length limits.
+                // Query parameters are still supported for links created by older versions.
+                const hashParams = new URLSearchParams(window.location.hash.replace(/^#\??/, ''));
+                const queryParams = new URLSearchParams(window.location.search);
+                const urlParams = hashParams.has('testId') ? hashParams : queryParams;
                 const testId = urlParams.get('testId');
 
                 if (testId) {
