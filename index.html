@@ -142,7 +142,6 @@
                 <span id="camp-badge-element" class="bg-brand-orange text-white font-bold text-xs uppercase px-3 py-1 rounded-full tracking-wider shadow-sm">Интеллектуальная оценка</span>
                 
                 <div class="mt-4" id="campaign-title-badge-container">
-                    <span class="text-xs font-semibold text-brand-orange uppercase tracking-widest block mb-1">Режим: Скрининг дефицитов</span>
                     <h1 id="camp-title-element" class="text-3xl font-black leading-tight">Узнайте свои реальные компетенции</h1>
                 </div>
                 
@@ -153,19 +152,18 @@
                 <div class="flex items-center space-x-6 mt-6 pt-6 border-t border-white/10 text-xs text-slate-300">
                     <span class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-brand-orange text-sm"></i> <span id="camp-duration-text">10 минут</span></span>
                     <span class="flex items-center gap-1.5"><i class="fa-regular fa-circle-question text-brand-orange text-sm"></i> <span id="camp-questions-count">12</span> вопросов</span>
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-brand-orange text-sm"></i> Персональный отчет HR</span>
                 </div>
             </div>
 
             <!-- Регистрационная анкета соискателя -->
             <div class="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-sm space-y-6">
                 <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <span class="w-2 h-6 bg-brand-orange rounded-full"></span> Входные данные кандидата
+                    <span class="w-2 h-6 bg-brand-orange rounded-full"></span> Входные данные
                 </h2>
                 
                 <form id="candidate-form" onsubmit="startTest(event)" class="space-y-5">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">ФИО Кандидата</label>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Ваши фамилия и имя</label>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
                                 <i class="fa-regular fa-user text-sm"></i>
@@ -661,6 +659,44 @@
                             </select>
                         </div>
                     </div>
+
+                    <div class="pt-4 border-t border-slate-200 space-y-3">
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-900">Поля входных данных</h4>
+                            <p class="text-xs text-slate-500 mt-1">Добавьте вопросы, которые кандидат заполнит перед началом теста.</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="sm:col-span-2">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Название поля</label>
+                                <input type="text" id="wz-candidate-field-label" placeholder="Например: Город или должность" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-brand-orange">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Тип ответа</label>
+                                <select id="wz-candidate-field-type" onchange="toggleWizardCandidateFieldOptions()" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none">
+                                    <option value="text">Текст</option>
+                                    <option value="number">Число</option>
+                                    <option value="select">Выбор из списка</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Заполнение</label>
+                                <select id="wz-candidate-field-required" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none">
+                                    <option value="yes">Обязательно</option>
+                                    <option value="no">Необязательно</option>
+                                </select>
+                            </div>
+                            <div id="wz-candidate-field-options-wrap" class="sm:col-span-2 hidden">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Варианты через |</label>
+                                <input type="text" id="wz-candidate-field-options" placeholder="Москва | Казань | Другой" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-brand-orange">
+                            </div>
+                        </div>
+                        <button type="button" onclick="addWizardCandidateField()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white hover:bg-black rounded-lg text-xs font-bold transition">
+                            <i class="fa-solid fa-plus"></i> Добавить поле
+                        </button>
+                        <div id="wz-candidate-fields-list" class="space-y-2"></div>
+                    </div>
                 </div>
 
                 <!-- ШАГ 2: ВОПРОСЫ КОНТЕЙНЕРА -->
@@ -1148,6 +1184,47 @@
 
         function hasEnoughQuestionOptions(options) {
             return Object.values(options || {}).filter(Boolean).length >= 2;
+        }
+
+        function getRowValueByHeader(row, aliases) {
+            const normalizeHeader = value => value.toString().trim().toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]/g, '');
+            const acceptedHeaders = new Set(aliases.map(normalizeHeader));
+            const matchedKey = Object.keys(row).find(key => acceptedHeaders.has(normalizeHeader(key)));
+            if (matchedKey === undefined || row[matchedKey] === undefined || row[matchedKey] === null) return '';
+            return row[matchedKey].toString().trim();
+        }
+
+        function normalizeCorrectAnswer(row, options) {
+            const rawValue = getRowValueByHeader(row, [
+                'Correct', 'Correct Answer', 'Верный', 'Верный ответ',
+                'Правильный ответ', 'Ответ'
+            ]);
+            if (!rawValue) return null;
+
+            const value = rawValue.trim();
+            const normalizedText = value.toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+            const textMatch = Object.keys(options).find(key =>
+                options[key].toString().toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim() === normalizedText
+            );
+            if (textMatch) return textMatch;
+
+            const upperValue = value.toUpperCase().replace(/Ё/g, 'Е');
+            const latinMatch = upperValue.match(/^(?:(?:ВАРИАНТ|OPTION|ОТВЕТ)\s*)?([A-H])(?:\s*[).:\-]|\s|$)/);
+            if (latinMatch && options[latinMatch[1]]) return latinMatch[1];
+
+            if (/^[1-8]$/.test(upperValue)) {
+                const key = ANSWER_KEYS[Number(upperValue) - 1];
+                if (options[key]) return key;
+            }
+
+            const cyrillicKeys = { 'А': 'A', 'Б': 'B', 'В': 'C', 'Г': 'D', 'Д': 'E', 'Е': 'F', 'Ж': 'G', 'З': 'H' };
+            const cyrillicMatch = upperValue.match(/^(?:(?:ВАРИАНТ|ОТВЕТ)\s*)?([АБВГДЕЖЗ])(?:\s*[).:\-]|\s|$)/);
+            if (cyrillicMatch) {
+                const key = cyrillicKeys[cyrillicMatch[1]];
+                if (options[key]) return key;
+            }
+
+            return null;
         }
 
         // Всплывающие информативные уведомления
@@ -1808,6 +1885,10 @@
             switchView('survey');
         }
 
+        function setSurveyAnswer(questionId, value) {
+            surveyAnswersState[questionId] = typeof value === 'string' ? value.trim() : value;
+        }
+
         function renderSurveyQuestions() {
             const box = document.getElementById('survey-questions-container');
             if (!box) return;
@@ -1819,12 +1900,12 @@
                 const required = survey.required !== false && (q.required !== false || (survey.freeRequired && q.type === 'text'));
                 let control = '';
                 if (q.type === 'choice') {
-                    control = (q.options || []).slice(0, 8).map(opt => `<label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 text-sm"><input type="radio" name="survey_${q.id}" value="${opt}" onchange="surveyAnswersState['${q.id}']=this.value"> <span>${opt}</span></label>`).join('');
+                    control = (q.options || []).slice(0, 8).map(opt => `<label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 text-sm"><input type="radio" name="survey_${q.id}" value="${opt}" onchange="setSurveyAnswer('${q.id}', this.value)"> <span>${opt}</span></label>`).join('');
                 } else if (q.type === 'scale') {
                     const max = q.scaleMax || 5;
-                    control = `<div class="flex flex-wrap gap-2">${Array.from({length: max}, (_, i) => i + 1).map(val => `<label class="px-3 py-2 bg-white rounded-lg border border-slate-200 text-sm font-bold cursor-pointer"><input class="mr-1" type="radio" name="survey_${q.id}" value="${val}" onchange="surveyAnswersState['${q.id}']=this.value">${val}</label>`).join('')}</div>`;
+                    control = `<div class="flex flex-wrap gap-2">${Array.from({length: max}, (_, i) => i + 1).map(val => `<label class="px-3 py-2 bg-white rounded-lg border border-slate-200 text-sm font-bold cursor-pointer"><input class="mr-1" type="radio" name="survey_${q.id}" value="${val}" onchange="setSurveyAnswer('${q.id}', this.value)">${val}</label>`).join('')}</div>`;
                 } else {
-                    control = `<textarea rows="3" class="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none" oninput="surveyAnswersState['${q.id}']=this.value.trim()"></textarea>`;
+                    control = `<textarea rows="3" class="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none" oninput="setSurveyAnswer('${q.id}', this.value)"></textarea>`;
                 }
                 wrap.innerHTML = `<div class="text-sm font-bold text-slate-900">${idx + 1}. ${q.question} ${required ? '<span class="text-rose-500">*</span>' : ''}</div><div class="space-y-2">${control}</div>`;
                 box.appendChild(wrap);
@@ -2504,23 +2585,34 @@
         }
 
         function addWizardCandidateField() {
-            const label = prompt('Название поля для кандидата:');
-            if (!label) return;
-            const type = (prompt('Тип поля: text, number или select', 'text') || 'text').trim().toLowerCase();
-            if (!['text', 'number', 'select'].includes(type)) return showToast('Тип поля должен быть text, number или select.', 'error');
+            const labelInput = document.getElementById('wz-candidate-field-label');
+            const typeInput = document.getElementById('wz-candidate-field-type');
+            const requiredInput = document.getElementById('wz-candidate-field-required');
+            const optionsInput = document.getElementById('wz-candidate-field-options');
+            const label = labelInput?.value.trim() || '';
+            const type = typeInput?.value || 'text';
+            if (!label) return showToast('Введите название поля.', 'error');
             const field = {
                 id: Date.now() + Math.floor(Math.random() * 1000),
                 label,
                 type,
-                required: (prompt('Обязательное поле? yes/no', 'yes') || 'yes').toLowerCase() !== 'no',
+                required: requiredInput?.value !== 'no',
                 options: []
             };
             if (type === 'select') {
-                field.options = (prompt('Варианты через |', 'Вариант 1|Вариант 2') || '').split('|').map(v => v.trim()).filter(Boolean);
-                if (field.options.length === 0) return showToast('Для select нужны варианты.', 'error');
+                field.options = (optionsInput?.value || '').split('|').map(v => v.trim()).filter(Boolean);
+                if (field.options.length < 2) return showToast('Укажите минимум два варианта через |.', 'error');
             }
             wizardCandidateFields.push(field);
             renderWizardCandidateFieldsList();
+            labelInput.value = '';
+            if (optionsInput) optionsInput.value = '';
+            labelInput.focus();
+        }
+
+        function toggleWizardCandidateFieldOptions() {
+            const isSelect = document.getElementById('wz-candidate-field-type')?.value === 'select';
+            document.getElementById('wz-candidate-field-options-wrap')?.classList.toggle('hidden', !isSelect);
         }
 
         function deleteWizardCandidateField(id) {
@@ -2851,18 +2943,28 @@
                         return;
                     }
 
+                    const invalidCorrectRows = [];
                     const parsedQuestions = rawJson.map((row, i) => {
                         const options = normalizeQuestionOptions(row);
                         if (!hasEnoughQuestionOptions(options)) return null;
-                        const correct = (row.Correct || row["Верный"] || Object.keys(options)[0] || "A").toString().trim().toUpperCase();
+                        const correct = normalizeCorrectAnswer(row, options);
+                        if (!correct) {
+                            invalidCorrectRows.push(i + 2);
+                            return null;
+                        }
                         return {
                             id: Date.now() + i + Math.floor(Math.random() * 1000),
                             competency: row.Competency || row["Компетенция"] || "Общее",
                             question: row.Question || row["Вопрос"] || "Не заполнено",
                             options,
-                            correct: options[correct] ? correct : Object.keys(options)[0]
+                            correct
                         };
                     }).filter(Boolean);
+
+                    if (invalidCorrectRows.length > 0) {
+                        showToast(`Проверьте столбец «Верный ответ» в строках: ${invalidCorrectRows.join(', ')}. Укажите букву, номер или полный текст варианта.`, "error");
+                        return;
+                    }
 
                     if (parsedQuestions.length === 0) {
                         showToast("В файле не найдено вопросов минимум с двумя заполненными вариантами ответа.", "error");
@@ -2993,7 +3095,6 @@
                         document.getElementById('camp-questions-count').textContent = activeCampaignQuestions.length;
                         renderCandidateCustomFields();
 
-                        showToast(`Активирован контейнер: "${activeCampaign.title}"`);
                         return;
                     }
                 }
@@ -3033,6 +3134,7 @@
         window.exportCandidatesToExcel = exportCandidatesToExcel;
         window.exportSurveyResultsToExcel = exportSurveyResultsToExcel;
         window.submitSurvey = submitSurvey;
+        window.setSurveyAnswer = setSurveyAnswer;
         window.skipSurvey = skipSurvey;
         window.openTestWizard = openTestWizard;
         window.editCampaignWizard = editCampaignWizard; // ИСПРАВЛЕННЫЙ ЭКСПОРТ (теперь настройки открываются)
@@ -3060,6 +3162,7 @@
         window.handleSurveyExcelUpload = handleSurveyExcelUpload;
         window.addWizardCandidateField = addWizardCandidateField;
         window.deleteWizardCandidateField = deleteWizardCandidateField;
+        window.toggleWizardCandidateFieldOptions = toggleWizardCandidateFieldOptions;
         window.copyWizardLink = copyWizardLink;
         window.deleteCampaign = deleteCampaign;
         window.copyToClipboard = copyToClipboard;
