@@ -2594,7 +2594,8 @@
             wizardSurveyQuestions.forEach((q, idx) => {
                 const item = document.createElement('div');
                 item.className = 'p-3 flex items-center justify-between gap-3 hover:bg-slate-50';
-                item.innerHTML = `<div class="truncate"><span class="font-bold text-slate-700">#${idx + 1} ${q.type}</span><span class="text-slate-600 ml-1">${q.question}</span></div><button type="button" onclick="deleteWizardSurveyQuestion(${q.id})" class="text-rose-500 hover:text-rose-700 font-bold"><i class="fa-solid fa-trash-can"></i></button>`;
+                const encodedId = encodeURIComponent(String(q.id));
+                item.innerHTML = `<div class="truncate"><span class="font-bold text-slate-700">#${idx + 1} ${escapeHtml(q.type)}</span><span class="text-slate-600 ml-1">${escapeHtml(q.question)}</span></div><div class="flex items-center gap-2 shrink-0"><button type="button" onclick="openSurveyQuestionEditor('${encodedId}')" class="text-slate-600 hover:text-brand-orange font-bold">Изменить</button><button type="button" onclick="deleteWizardSurveyQuestion('${encodedId}')" class="text-rose-500 hover:text-rose-700 font-bold"><i class="fa-solid fa-trash-can"></i></button></div>`;
                 box.appendChild(item);
             });
         }
@@ -2614,8 +2615,54 @@
             renderWizardSurveyQuestionsList();
         }
 
-        function deleteWizardSurveyQuestion(id) {
-            wizardSurveyQuestions = wizardSurveyQuestions.filter(q => q.id !== id);
+        function openSurveyQuestionEditor(encodedId) {
+            const id = decodeURIComponent(encodedId);
+            const question = wizardSurveyQuestions.find(item => String(item.id) === id);
+            if (!question) return;
+            document.getElementById('esq-id').value = id;
+            document.getElementById('esq-question').value = question.question || '';
+            document.getElementById('esq-type').value = question.type || 'text';
+            document.getElementById('esq-required').value = question.required === false ? 'no' : 'yes';
+            document.getElementById('esq-options').value = (question.options || []).join(' | ');
+            document.getElementById('esq-scale-max').value = question.scaleMax || 5;
+            updateSurveyQuestionEditorFields();
+            document.getElementById('edit-survey-question-modal').classList.remove('hidden');
+        }
+
+        function closeSurveyQuestionEditor() {
+            document.getElementById('edit-survey-question-modal')?.classList.add('hidden');
+        }
+
+        function updateSurveyQuestionEditorFields() {
+            const type = document.getElementById('esq-type')?.value;
+            document.getElementById('esq-options-wrap')?.classList.toggle('hidden', !['choice', 'multichoice'].includes(type));
+            document.getElementById('esq-scale-wrap')?.classList.toggle('hidden', type !== 'scale');
+        }
+
+        function saveSurveyQuestionEdit(event) {
+            event.preventDefault();
+            const id = document.getElementById('esq-id').value;
+            const type = document.getElementById('esq-type').value;
+            const options = document.getElementById('esq-options').value.split('|').map(value => value.trim()).filter(Boolean).slice(0, 8);
+            if (['choice', 'multichoice'].includes(type) && options.length < 2) {
+                return showToast('Укажите минимум два варианта ответа.', 'error');
+            }
+            wizardSurveyQuestions = wizardSurveyQuestions.map(question => String(question.id) === id ? {
+                ...question,
+                question: document.getElementById('esq-question').value.trim(),
+                type,
+                options: ['choice', 'multichoice'].includes(type) ? options : [],
+                required: document.getElementById('esq-required').value === 'yes',
+                scaleMax: type === 'scale' ? Math.max(2, Math.min(10, parseInt(document.getElementById('esq-scale-max').value, 10) || 5)) : 5
+            } : question);
+            renderWizardSurveyQuestionsList();
+            closeSurveyQuestionEditor();
+            showToast('Вопрос анкеты обновлён.');
+        }
+
+        function deleteWizardSurveyQuestion(encodedId) {
+            const id = decodeURIComponent(encodedId);
+            wizardSurveyQuestions = wizardSurveyQuestions.filter(q => String(q.id) !== id);
             renderWizardSurveyQuestionsList();
         }
 
