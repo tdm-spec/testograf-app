@@ -915,9 +915,10 @@
                 snapshot.forEach(doc => {
                     list.push({ id: doc.id, ...doc.data() });
                 });
-                // Сортируем локально по дате/времени (RULE 2)
-                list.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
-                candidatesDb = list;
+                // Старые версии могли сохранить одно прохождение несколько раз под разными Firestore ID.
+                const uniqueList = [...new Map(list.map(item => [item.id, item])).values()];
+                uniqueList.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+                candidatesDb = uniqueList;
                 localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
                 renderAdminDashboard();
             }, (error) => {
