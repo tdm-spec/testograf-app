@@ -754,6 +754,52 @@
         </div>
     </div>
 
+    <div id="edit-survey-question-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden">
+            <div class="p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                <h3 class="text-base font-bold text-slate-950">Редактирование вопроса анкеты</h3>
+                <button type="button" onclick="closeSurveyQuestionEditor()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="saveSurveyQuestionEdit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="esq-id">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Текст вопроса</label>
+                    <textarea id="esq-question" required rows="3" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-orange"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Тип вопроса</label>
+                        <select id="esq-type" onchange="updateSurveyQuestionEditorFields()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                            <option value="choice">Один вариант</option>
+                            <option value="multichoice">Несколько вариантов</option>
+                            <option value="text">Свободный ответ</option>
+                            <option value="scale">Шкала</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Заполнение</label>
+                        <select id="esq-required" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                            <option value="yes">Обязательно</option>
+                            <option value="no">Необязательно</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="esq-options-wrap">
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Варианты через |</label>
+                    <input id="esq-options" type="text" placeholder="Да | Нет | Другое" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-orange">
+                </div>
+                <div id="esq-scale-wrap" class="hidden">
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Максимум шкалы (2–10)</label>
+                    <input id="esq-scale-max" type="number" min="2" max="10" value="5" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-orange">
+                </div>
+                <div class="flex gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeSurveyQuestionEditor()" class="w-1/2 py-2.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600">Отмена</button>
+                    <button type="submit" class="w-1/2 py-2.5 bg-slate-900 text-brand-orange rounded-lg text-xs font-bold">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- МОДАЛЬНОЕ ОКНО АНАЛИЗА КОМПЕТЕНЦИЙ СОИСКАТЕЛЯ -->
     <div id="skills-analysis-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden p-4">
         <div class="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-y-auto max-h-[90vh]">
