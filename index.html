@@ -198,6 +198,7 @@
                         <span class="bg-orange-50 text-brand-orange text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider border border-orange-100" id="question-comp-tag">Загрузка</span>
                     </div>
                     <h3 class="text-xl md:text-2xl font-bold text-slate-900 leading-snug" id="question-text">Загрузка вопроса...</h3>
+                    <p id="question-multiple-hint" class="hidden text-xs font-semibold text-brand-orange mt-2">Выберите все подходящие варианты</p>
                 </div>
 
                 <div class="grid grid-cols-1 gap-3.5 my-6" id="answer-options-grid"></div>
@@ -455,13 +456,12 @@
                             <input type="text" id="mq-optD" placeholder="Вариант Г" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm">
                         </div>
                         <div class="md:col-span-2">
-                            <select id="mq-correct" required class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm">
-                                <option value="" disabled selected>Верный</option>
-                                <option value="A">Вариант А</option>
-                                <option value="B">Вариант Б</option>
-                                <option value="C">Вариант В</option>
-                                <option value="D">Вариант Г</option>
-                            </select>
+                            <div id="mq-correct" class="grid grid-cols-2 gap-1 p-2 bg-white border border-slate-200 rounded-lg text-[10px]">
+                                <label><input type="checkbox" value="A" class="mr-1">A</label>
+                                <label><input type="checkbox" value="B" class="mr-1">B</label>
+                                <label><input type="checkbox" value="C" class="mr-1">C</label>
+                                <label><input type="checkbox" value="D" class="mr-1">D</label>
+                            </div>
                         </div>
                         <div class="md:col-span-2">
                             <button type="submit" class="w-full bg-slate-900 hover:bg-black text-brand-orange font-bold text-xs py-3 rounded-lg flex items-center justify-center gap-1 border border-brand-orange/20">
@@ -649,7 +649,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <label class="p-4 border border-slate-200 hover:border-indigo-400 bg-white rounded-xl text-center transition cursor-pointer relative"><input type="file" id="wz-survey-excel-input" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleSurveyExcelUpload(event)"><i class="fa-solid fa-file-excel text-emerald-600 text-2xl mb-1.5"></i><h5 class="text-xs font-bold">&#1048;&#1084;&#1087;&#1086;&#1088;&#1090; &#1072;&#1085;&#1082;&#1077;&#1090;&#1099; Excel</h5><p class="text-[10px] text-slate-400 mt-1">Question, Type, Options, Required, ScaleMax</p></label>
                             <button type="button" onclick="addWizardSurveyQuestion()" class="p-4 border border-slate-200 hover:border-indigo-400 bg-white rounded-xl text-center transition"><i class="fa-solid fa-plus text-indigo-600 text-2xl mb-1.5"></i><h5 class="text-xs font-bold">&#1044;&#1086;&#1073;&#1072;&#1074;&#1080;&#1090;&#1100; &#1074;&#1086;&#1087;&#1088;&#1086;&#1089; &#1072;&#1085;&#1082;&#1077;&#1090;&#1099;</h5><p class="text-[10px] text-slate-400 mt-1">&#1042;&#1072;&#1088;&#1080;&#1072;&#1085;&#1090;&#1099;, &#1089;&#1074;&#1086;&#1073;&#1086;&#1076;&#1085;&#1099;&#1081; &#1086;&#1090;&#1074;&#1077;&#1090; &#1080;&#1083;&#1080; &#1096;&#1082;&#1072;&#1083;&#1072;</p></button>
-                            <button type="button" onclick="downloadSurveyTemplate()" class="p-4 border border-slate-200 hover:border-indigo-400 bg-white rounded-xl text-center transition"><i class="fa-solid fa-download text-indigo-600 text-2xl mb-1.5"></i><h5 class="text-xs font-bold">Скачать шаблон анкеты</h5><p class="text-[10px] text-slate-400 mt-1">Excel с типами choice, text, scale</p></button>
+                            <button type="button" onclick="downloadSurveyTemplate()" class="p-4 border border-slate-200 hover:border-indigo-400 bg-white rounded-xl text-center transition"><i class="fa-solid fa-download text-indigo-600 text-2xl mb-1.5"></i><h5 class="text-xs font-bold">Скачать шаблон анкеты</h5><p class="text-[10px] text-slate-400 mt-1">Типы choice, multichoice, text, scale</p></button>
                         </div>
                         <div class="flex justify-between items-center text-xs font-bold text-slate-500"><span>&#1042;&#1086;&#1087;&#1088;&#1086;&#1089;&#1099; &#1072;&#1085;&#1082;&#1077;&#1090;&#1099; (<span id="wz-survey-count">0</span>)</span><button type="button" onclick="clearWizardSurveyQuestions()" class="text-rose-500 hover:text-rose-700">&#1054;&#1095;&#1080;&#1089;&#1090;&#1080;&#1090;&#1100; &#1072;&#1085;&#1082;&#1077;&#1090;&#1091;</button></div>
                         <div id="wz-survey-questions-list" class="max-h-40 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white text-xs"></div>
@@ -701,13 +701,8 @@
                         <input type="text" id="eq-comp" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-brand-orange outline-none">
                     </div>
                     <div class="col-span-2">
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Верный ответ</label>
-                        <select id="eq-correct" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-brand-orange outline-none">
-                            <option value="A">Вариант А</option>
-                            <option value="B">Вариант Б</option>
-                            <option value="C">Вариант В</option>
-                            <option value="D">Вариант Г</option>
-                        </select>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Верные ответы (можно несколько)</label>
+                        <div id="eq-correct" class="grid grid-cols-4 gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"></div>
                     </div>
                 </div>
 
@@ -1044,6 +1039,7 @@
         let shortLoadedCampaignId = null;
         let publicLinkedCampaign = null;
         let sharedFirebaseConfig = null;
+        const candidateSavePromises = new Map();
 
         // Переменные для мастера создания теста (Wizard State)
         let wizardStep = 1;
@@ -1118,14 +1114,9 @@
             return row[matchedKey].toString().trim();
         }
 
-        function normalizeCorrectAnswer(row, options) {
-            const rawValue = getRowValueByHeader(row, [
-                'Correct', 'Correct Answer', 'Верный', 'Верный ответ',
-                'Правильный ответ', 'Ответ'
-            ]);
-            if (!rawValue) return null;
-
-            const value = rawValue.trim();
+        function normalizeCorrectValue(rawValue, options) {
+            const value = String(rawValue || '').trim();
+            if (!value) return null;
             const normalizedText = value.toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
             const textMatch = Object.keys(options).find(key =>
                 options[key].toString().toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim() === normalizedText
@@ -1149,6 +1140,34 @@
             }
 
             return null;
+        }
+
+        function normalizeCorrectAnswers(row, options) {
+            const rawValue = getRowValueByHeader(row, [
+                'Correct', 'Correct Answer', 'Верный', 'Верный ответ',
+                'Правильный ответ', 'Ответ'
+            ]);
+            if (!rawValue) return null;
+            const values = rawValue.split(/[|;\n]+/).map(value => normalizeCorrectValue(value, options)).filter(Boolean);
+            const uniqueValues = [...new Set(values)];
+            return uniqueValues.length ? uniqueValues : null;
+        }
+
+        function getCorrectAnswerKeys(question) {
+            const values = Array.isArray(question?.correct) ? question.correct : [question?.correct];
+            return values.filter(Boolean).map(String).sort();
+        }
+
+        function isQuestionAnswered(questionId) {
+            const answer = answersState[questionId];
+            return Array.isArray(answer) ? answer.length > 0 : Boolean(answer);
+        }
+
+        function isQuestionAnswerCorrect(question) {
+            const expected = getCorrectAnswerKeys(question);
+            const actualValue = answersState[question.id];
+            const actual = (Array.isArray(actualValue) ? actualValue : [actualValue]).filter(Boolean).map(String).sort();
+            return expected.length === actual.length && expected.every((value, index) => value === actual[index]);
         }
 
         // Всплывающие информативные уведомления
@@ -1222,6 +1241,15 @@
                     OptionC: "Удаление лида",
                     OptionD: "Архивирование",
                     Correct: "A"
+                },
+                {
+                    Competency: "Продукт",
+                    Question: "Какие варианты являются верными?",
+                    OptionA: "Первый верный вариант",
+                    OptionB: "Неверный вариант",
+                    OptionC: "Второй верный вариант",
+                    OptionD: "Ещё один неверный вариант",
+                    Correct: "A|C"
                 }
             ];
 
@@ -1237,6 +1265,7 @@
             const templateData = [
                 { Question: "Оцените удобство прохождения теста", Type: "scale", Options: "", Required: "yes", ScaleMax: 5 },
                 { Question: "Какой формат обучения вам удобнее?", Type: "choice", Options: "Онлайн|Офлайн|Смешанный", Required: "yes", ScaleMax: "" },
+                { Question: "Какие форматы вам подходят?", Type: "multichoice", Options: "Онлайн|Офлайн|Самостоятельно", Required: "yes", ScaleMax: "" },
                 { Question: "Оставьте комментарий", Type: "text", Options: "", Required: "no", ScaleMax: "" }
             ];
             const worksheet = XLSX.utils.json_to_sheet(templateData);
@@ -1744,15 +1773,19 @@
             if (!grid) return;
             grid.innerHTML = '';
 
-            const selectedAns = answersState[currentQ.id] || null;
+            const correctKeys = getCorrectAnswerKeys(currentQ);
+            const isMultiple = correctKeys.length > 1;
+            const selectedValue = answersState[currentQ.id];
+            const selectedAnswers = Array.isArray(selectedValue) ? selectedValue : (selectedValue ? [selectedValue] : []);
+            document.getElementById('question-multiple-hint')?.classList.toggle('hidden', !isMultiple);
 
             Object.entries(currentQ.options).forEach(([key, text]) => {
                 if (!text) return; 
-                const isSelected = selectedAns === key;
+                const isSelected = selectedAnswers.includes(key);
 
                 const optButton = document.createElement('button');
                 optButton.type = 'button';
-                optButton.onclick = () => selectAnswer(currentQ.id, key);
+                optButton.onclick = () => selectAnswer(currentQ.id, key, isMultiple);
                 optButton.className = `w-full text-left p-4 rounded-xl border-2 transition-all flex items-center justify-between group ${
                     isSelected 
                     ? 'border-brand-orange bg-orange-50/40 shadow-sm font-semibold text-slate-900' 
@@ -1783,12 +1816,17 @@
                 } else {
                     nextBtn.innerHTML = `Ответить & Дальше <i class="fa-solid fa-arrow-right"></i>`;
                 }
-                nextBtn.disabled = !answersState[currentQ.id];
+                nextBtn.disabled = !isQuestionAnswered(currentQ.id);
             }
         }
 
-        function selectAnswer(qId, val) {
-            answersState[qId] = val;
+        function selectAnswer(qId, val, isMultiple = false) {
+            if (isMultiple) {
+                const current = Array.isArray(answersState[qId]) ? [...answersState[qId]] : [];
+                answersState[qId] = current.includes(val) ? current.filter(item => item !== val) : [...current, val];
+            } else {
+                answersState[qId] = val;
+            }
             renderQuestion();
         }
 
@@ -1820,7 +1858,7 @@
                     compCorrect[q.competency] = 0;
                 }
                 compTotals[q.competency]++;
-                if (answersState[q.id] === q.correct) {
+                if (isQuestionAnswerCorrect(q)) {
                     compCorrect[q.competency]++;
                 }
             });
@@ -1854,19 +1892,7 @@
                 return;
             }
 
-            if (isFirebaseActive && db) {
-                try {
-                    // Пишем в облачную базу строго по регламенту RULE 1 & RULE 3
-                    const candCol = collection(db, 'artifacts', appId, 'public', 'data', 'candidates');
-                    await addDoc(candCol, currentCandidate);
-                    showToast("Ваш результат сохранен в облачной базе!");
-                } catch (e) {
-                    console.error("Ошибка сохранения в Firebase:", e);
-                    saveCandidateLocally(currentCandidate);
-                }
-            } else {
-                saveCandidateLocally(currentCandidate);
-            }
+            await persistCandidateResult(currentCandidate);
 
             switchView('results');
         }
@@ -1888,6 +1914,13 @@
             surveyAnswersState[questionId] = typeof value === 'string' ? value.trim() : value;
         }
 
+        function setSurveyMultiAnswer(questionId, value, checked) {
+            const current = Array.isArray(surveyAnswersState[questionId]) ? [...surveyAnswersState[questionId]] : [];
+            surveyAnswersState[questionId] = checked
+                ? [...new Set([...current, value])]
+                : current.filter(item => item !== value);
+        }
+
         function renderSurveyQuestions() {
             const box = document.getElementById('survey-questions-container');
             if (!box) return;
@@ -1900,6 +1933,8 @@
                 let control = '';
                 if (q.type === 'choice') {
                     control = (q.options || []).slice(0, 8).map(opt => `<label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 text-sm"><input type="radio" name="survey_${q.id}" value="${opt}" onchange="setSurveyAnswer('${q.id}', this.value)"> <span>${opt}</span></label>`).join('');
+                } else if (q.type === 'multichoice') {
+                    control = (q.options || []).slice(0, 8).map(opt => `<label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 text-sm"><input type="checkbox" value="${opt}" onchange="setSurveyMultiAnswer('${q.id}', this.value, this.checked)"> <span>${opt}</span></label>`).join('');
                 } else if (q.type === 'scale') {
                     const max = q.scaleMax || 5;
                     control = `<div class="flex flex-wrap gap-2">${Array.from({length: max}, (_, i) => i + 1).map(val => `<label class="px-3 py-2 bg-white rounded-lg border border-slate-200 text-sm font-bold cursor-pointer"><input class="mr-1" type="radio" name="survey_${q.id}" value="${val}" onchange="setSurveyAnswer('${q.id}', this.value)">${val}</label>`).join('')}</div>`;
@@ -1916,26 +1951,18 @@
             const survey = activeCampaign?.survey || {};
             const missing = (survey.questions || []).some(q => {
                 const required = survey.required !== false && (q.required !== false || (survey.freeRequired && q.type === 'text'));
-                return required && !surveyAnswersState[q.id];
+                const answer = surveyAnswersState[q.id];
+                return required && (Array.isArray(answer) ? answer.length === 0 : !answer);
             });
             if (missing) return showToast('Заполните обязательные вопросы анкеты.', 'error');
-            currentCandidate.surveyAnswers = (survey.questions || []).map(q => ({ question: q.question, type: q.type, answer: surveyAnswersState[q.id] || '' }));
+            currentCandidate.surveyAnswers = (survey.questions || []).map(q => {
+                const answer = surveyAnswersState[q.id] || '';
+                return { question: q.question, type: q.type, answer: Array.isArray(answer) ? answer.join(', ') : answer };
+            });
             if (currentSurveyPhase === 'before') {
                 startActualTest();
             } else {
-                if (isFirebaseActive && db) {
-                    try {
-                        const candCol = collection(db, 'artifacts', appId, 'public', 'data', 'candidates');
-                        await addDoc(candCol, currentCandidate);
-                    } catch (e) {
-                        console.error("Survey save error:", e);
-                        saveCandidateLocally(currentCandidate);
-                        switchView('results');
-                        return;
-                    }
-                } else {
-                    saveCandidateLocally(currentCandidate);
-                }
+                await persistCandidateResult(currentCandidate);
                 switchView('results');
             }
         }
@@ -1945,24 +1972,37 @@
             if (currentSurveyPhase === 'before') {
                 startActualTest();
             } else {
-                if (isFirebaseActive && db) {
-                    try {
-                        const candCol = collection(db, 'artifacts', appId, 'public', 'data', 'candidates');
-                        await addDoc(candCol, currentCandidate);
-                    } catch (e) {
-                        saveCandidateLocally(currentCandidate);
-                    }
-                } else {
-                    saveCandidateLocally(currentCandidate);
-                }
+                await persistCandidateResult(currentCandidate);
                 switchView('results');
             }
         }
 
         function saveCandidateLocally(cand) {
-            candidatesDb.unshift(cand);
+            const existingIndex = candidatesDb.findIndex(item => item.id === cand.id);
+            if (existingIndex >= 0) candidatesDb[existingIndex] = cand;
+            else candidatesDb.unshift(cand);
             localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
             showToast("Результаты успешно сохранены локально");
+        }
+
+        async function persistCandidateResult(cand) {
+            if (!cand?.id) return;
+            if (candidateSavePromises.has(cand.id)) return candidateSavePromises.get(cand.id);
+            const savePromise = (async () => {
+                if (isFirebaseActive && db) {
+                    try {
+                        const candDoc = doc(db, 'artifacts', appId, 'public', 'data', 'candidates', cand.id);
+                        await setDoc(candDoc, cand);
+                        showToast("Ваш результат сохранен в облачной базе!");
+                        return;
+                    } catch (error) {
+                        console.error("Ошибка сохранения результата:", error);
+                    }
+                }
+                saveCandidateLocally(cand);
+            })();
+            candidateSavePromises.set(cand.id, savePromise);
+            return savePromise;
         }
 
         function resetTestingFlow() {
@@ -2157,16 +2197,16 @@
                         <h4 class="font-bold text-slate-800 text-sm md:text-base leading-snug">${q.question}</h4>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-500 pt-1">
-                            <div class="${q.correct === 'A' ? 'font-bold text-slate-800' : ''}">
+                            <div class="${getCorrectAnswerKeys(q).includes('A') ? 'font-bold text-slate-800' : ''}">
                                 <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded mr-1">A</span> ${q.options.A || '—'}
                             </div>
-                            <div class="${q.correct === 'B' ? 'font-bold text-slate-800' : ''}">
+                            <div class="${getCorrectAnswerKeys(q).includes('B') ? 'font-bold text-slate-800' : ''}">
                                 <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded mr-1">B</span> ${q.options.B || '—'}
                             </div>
-                            <div class="${q.correct === 'C' ? 'font-bold text-slate-800' : ''}">
+                            <div class="${getCorrectAnswerKeys(q).includes('C') ? 'font-bold text-slate-800' : ''}">
                                 <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded mr-1">C</span> ${q.options.C || '—'}
                             </div>
-                            <div class="${q.correct === 'D' ? 'font-bold text-slate-800' : ''}">
+                            <div class="${getCorrectAnswerKeys(q).includes('D') ? 'font-bold text-slate-800' : ''}">
                                 <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded mr-1">D</span> ${q.options.D || '—'}
                             </div>
                         </div>
@@ -2465,9 +2505,9 @@
             const optB = prompt("Вариант ответа B:");
             const optC = prompt("Вариант ответа C (опционально):") || "";
             const optD = prompt("Вариант ответа D (опционально):") || "";
-            const correct = prompt("Укажите букву верного ответа (A, B, C или D):", "A").toUpperCase();
+            const correct = (prompt("Укажите верные ответы через | (например A|C):", "A") || '').toUpperCase().split(/[|;,\s]+/).filter(Boolean);
 
-            if (!["A", "B", "C", "D"].includes(correct)) {
+            if (!correct.length || correct.some(key => !["A", "B", "C", "D"].includes(key))) {
                 showToast("Неверный формат правильного ответа!", "error");
                 return;
             }
@@ -2477,7 +2517,7 @@
                 competency: comp,
                 question: text,
                 options: { A: optA, B: optB, C: optC, D: optD },
-                correct: correct
+                correct: correct.length === 1 ? correct[0] : [...new Set(correct)]
             };
 
             wizardLocalQuestions.push(newQ);
@@ -2515,10 +2555,10 @@
         function addWizardSurveyQuestion() {
             const question = prompt('Survey question text:');
             if (!question) return;
-            const type = (prompt('Type: choice, text, or scale', 'text') || 'text').trim().toLowerCase();
-            if (!['choice', 'text', 'scale'].includes(type)) return showToast('Use choice, text, or scale.', 'error');
+            const type = (prompt('Тип: choice, multichoice, text или scale', 'text') || 'text').trim().toLowerCase();
+            if (!['choice', 'multichoice', 'text', 'scale'].includes(type)) return showToast('Используйте choice, multichoice, text или scale.', 'error');
             const item = { id: Date.now() + Math.floor(Math.random() * 1000), question, type, options: [], required: true, scaleMax: 5 };
-            if (type === 'choice') {
+            if (type === 'choice' || type === 'multichoice') {
                 item.options = (prompt('Options separated by |', 'Yes|No') || '').split('|').map(v => v.trim()).filter(Boolean).slice(0, 8);
                 if (item.options.length < 2) return showToast('Choice questions need at least two options.', 'error');
             }
@@ -2548,9 +2588,9 @@
                     const parsed = rows.map((row, i) => {
                         const type = (row.Type || row['Тип'] || 'text').toString().trim().toLowerCase();
                         const question = (row.Question || row['Вопрос'] || '').toString().trim();
-                        if (!question || !['choice', 'text', 'scale'].includes(type)) return null;
+                        if (!question || !['choice', 'multichoice', 'text', 'scale'].includes(type)) return null;
                         const options = (row.Options || row['Варианты'] || '').toString().split('|').map(v => v.trim()).filter(Boolean).slice(0, 8);
-                        if (type === 'choice' && options.length < 2) return null;
+                        if (['choice', 'multichoice'].includes(type) && options.length < 2) return null;
                         return { id: Date.now() + i + Math.floor(Math.random() * 1000), question, type, options, required: !['no', 'false', '0', 'нет'].includes((row.Required || row['Обязательный'] || 'yes').toString().trim().toLowerCase()), scaleMax: Math.max(2, Math.min(10, parseInt(row.ScaleMax || row['МаксимумШкалы'] || 5, 10) || 5)) };
                     }).filter(Boolean);
                     if (!parsed.length) return showToast('No valid survey questions found.', 'error');
@@ -2791,7 +2831,6 @@
             document.getElementById('eq-id').value = targetQ.id;
             document.getElementById('eq-source').value = source;
             document.getElementById('eq-comp').value = targetQ.competency;
-            document.getElementById('eq-correct').value = targetQ.correct;
             document.getElementById('eq-text').value = targetQ.question;
             ANSWER_KEYS.forEach(key => {
                 const input = document.getElementById(`eq-opt${key}`);
@@ -2799,8 +2838,9 @@
             });
             const correctSelect = document.getElementById('eq-correct');
             if (correctSelect) {
-                correctSelect.innerHTML = ANSWER_KEYS.map(key => `<option value="${key}">Вариант ${key}</option>`).join('');
-                correctSelect.value = targetQ.correct;
+                correctSelect.innerHTML = ANSWER_KEYS.map(key => `<label class="flex items-center gap-1"><input type="checkbox" value="${key}">${key}</label>`).join('');
+                const selectedCorrect = getCorrectAnswerKeys(targetQ);
+                correctSelect.querySelectorAll('input').forEach(input => input.checked = selectedCorrect.includes(input.value));
             }
 
             const modal = document.getElementById('edit-question-modal');
@@ -2817,7 +2857,7 @@
             const id = parseInt(document.getElementById('eq-id').value);
             const source = document.getElementById('eq-source').value;
             const comp = document.getElementById('eq-comp').value.trim();
-            const correct = document.getElementById('eq-correct').value;
+            const correct = Array.from(document.querySelectorAll('#eq-correct input:checked')).map(input => input.value);
             const text = document.getElementById('eq-text').value.trim();
             const options = {};
             ANSWER_KEYS.forEach(key => {
@@ -2829,13 +2869,17 @@
                 showToast("Заполните минимум два варианта ответа.", "error");
                 return;
             }
+            if (!correct.length || correct.some(key => !options[key])) {
+                showToast("Выберите минимум один верный ответ из заполненных вариантов.", "error");
+                return;
+            }
 
             const updatedQ = {
                 id: id,
                 competency: comp,
                 question: text,
                 options,
-                correct: options[correct] ? correct : Object.keys(options)[0]
+                correct: correct.length === 1 ? correct[0] : correct
             };
 
             if (source === 'global') {
@@ -2957,14 +3001,15 @@
             const optB = document.getElementById('mq-optB').value.trim();
             const optC = document.getElementById('mq-optC').value.trim();
             const optD = document.getElementById('mq-optD').value.trim();
-            const correct = document.getElementById('mq-correct').value;
+            const correct = Array.from(document.querySelectorAll('#mq-correct input:checked')).map(input => input.value);
+            if (!correct.length) return showToast("Выберите минимум один верный ответ.", "error");
 
             const newQ = {
                 id: Date.now(),
                 competency: comp,
                 question: text,
                 options: { A: optA, B: optB, C: optC, D: optD },
-                correct: correct
+                correct: correct.length === 1 ? correct[0] : correct
             };
 
             questions.push(newQ);
@@ -3005,7 +3050,7 @@
                     const parsedQuestions = rawJson.map((row, i) => {
                         const options = normalizeQuestionOptions(row);
                         if (!hasEnoughQuestionOptions(options)) return null;
-                        const correct = normalizeCorrectAnswer(row, options);
+                        const correct = normalizeCorrectAnswers(row, options);
                         if (!correct) {
                             invalidCorrectRows.push(i + 2);
                             return null;
@@ -3015,7 +3060,7 @@
                             competency: row.Competency || row["Компетенция"] || "Общее",
                             question: row.Question || row["Вопрос"] || "Не заполнено",
                             options,
-                            correct
+                            correct: correct.length === 1 ? correct[0] : correct
                         };
                     }).filter(Boolean);
 
@@ -3201,6 +3246,7 @@
         window.exportSurveyResultsToExcel = exportSurveyResultsToExcel;
         window.submitSurvey = submitSurvey;
         window.setSurveyAnswer = setSurveyAnswer;
+        window.setSurveyMultiAnswer = setSurveyMultiAnswer;
         window.skipSurvey = skipSurvey;
         window.openTestWizard = openTestWizard;
         window.editCampaignWizard = editCampaignWizard; // ИСПРАВЛЕННЫЙ ЭКСПОРТ (теперь настройки открываются)
