@@ -1055,7 +1055,8 @@
         /* ==================== СОСТОЯНИЕ ПРИЛОЖЕНИЯ ==================== */
         let questions = JSON.parse(localStorage.getItem('testograf_questions_v2')) || [];
         let campaigns = JSON.parse(localStorage.getItem('testograf_campaigns_v2')) || [];
-        let candidatesDb = JSON.parse(localStorage.getItem('testograf_candidates_v2')) || [];
+        const storedCandidates = JSON.parse(localStorage.getItem('testograf_candidates_v2')) || [];
+        let candidatesDb = [...new Map(storedCandidates.map(item => [item.id, item])).values()];
 
         // Заполнение при пустом старте
         if (questions.length === 0) {
