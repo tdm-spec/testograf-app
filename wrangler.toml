@@ -1,0 +1,7 @@
+name = "testograf-app"
+compatibility_date = "2026-06-23"
+pages_build_output_dir = "."
+
+[[kv_namespaces]]
+binding = "TESTOGRAF_TESTS"
+id = "REPLACE_WITH_TESTOGRAF_TESTS_KV_NAMESPACE_ID"

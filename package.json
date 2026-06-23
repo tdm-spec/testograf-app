@@ -1,7 +1,4 @@
 {
   "name": "testograf-app",
-  "private": true,
-  "dependencies": {
-    "@netlify/blobs": "latest"
-  }
+  "private": true
 }
