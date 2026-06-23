@@ -647,7 +647,7 @@
                             <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">&#1057;&#1074;&#1086;&#1073;&#1086;&#1076;&#1085;&#1099;&#1077; &#1087;&#1086;&#1083;&#1103;</label><select id="wz-survey-free-required" class="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs"><option value="no">&#1053;&#1077; &#1086;&#1073;&#1103;&#1079;&#1072;&#1090;&#1077;&#1083;&#1100;&#1085;&#1099;</option><option value="yes">&#1054;&#1073;&#1103;&#1079;&#1072;&#1090;&#1077;&#1083;&#1100;&#1085;&#1099;</option></select></div>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <label class="p-4 border border-slate-200 hover:border-indigo-400 bg-white rounded-xl text-center transition cursor-pointer relative"><input type="file" id="wz-survey-excel-input" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleSurveyExcelUpload(event)"><i class="fa-solid fa-file-excel text-emerald-600 text-2xl mb-1.5"></i><h5 class="text-xs font-bold">&#1048;&#1084;&#1087;&#1086;&#1088;&#1090; &#1072;&#1085;&#1082;&#1077;&#1090;&#1099; Excel</h5><p class="text-[10px] text-slate-400 mt-1">Question, Type, Options, Required, ScaleMax</p></label>
+                            <label class="p-4 border border-slate-200 hover:border-indigo-400 bg-white rounded-xl text-center transition cursor-pointer relative"><input type="file" id="wz-survey-excel-input" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleSurveyExcelUpload(event)"><i class="fa-solid fa-file-excel text-emerald-600 text-2xl mb-1.5"></i><h5 class="text-xs font-bold">&#1048;&#1084;&#1087;&#1086;&#1088;&#1090; &#1072;&#1085;&#1082;&#1077;&#1090;&#1099; Excel</h5><p class="text-[10px] text-slate-400 mt-1">Question, Type, Options, Required, ScaleMax, StaffCondition</p></label>
                             <button type="button" onclick="addWizardSurveyQuestion()" class="p-4 border border-slate-200 hover:border-indigo-400 bg-white rounded-xl text-center transition"><i class="fa-solid fa-plus text-indigo-600 text-2xl mb-1.5"></i><h5 class="text-xs font-bold">&#1044;&#1086;&#1073;&#1072;&#1074;&#1080;&#1090;&#1100; &#1074;&#1086;&#1087;&#1088;&#1086;&#1089; &#1072;&#1085;&#1082;&#1077;&#1090;&#1099;</h5><p class="text-[10px] text-slate-400 mt-1">&#1042;&#1072;&#1088;&#1080;&#1072;&#1085;&#1090;&#1099;, &#1089;&#1074;&#1086;&#1073;&#1086;&#1076;&#1085;&#1099;&#1081; &#1086;&#1090;&#1074;&#1077;&#1090; &#1080;&#1083;&#1080; &#1096;&#1082;&#1072;&#1083;&#1072;</p></button>
                             <button type="button" onclick="downloadSurveyTemplate()" class="p-4 border border-slate-200 hover:border-indigo-400 bg-white rounded-xl text-center transition"><i class="fa-solid fa-download text-indigo-600 text-2xl mb-1.5"></i><h5 class="text-xs font-bold">Скачать шаблон анкеты</h5><p class="text-[10px] text-slate-400 mt-1">Типы choice, multichoice, text, scale</p></button>
                         </div>
@@ -783,6 +783,14 @@
                             <option value="no">Необязательно</option>
                         </select>
                     </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">&#1055;&#1086;&#1082;&#1072;&#1079;&#1099;&#1074;&#1072;&#1090;&#1100; &#1074;&#1086;&#1087;&#1088;&#1086;&#1089;</label>
+                    <select id="esq-staff-condition" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                        <option value="all">&#1042;&#1089;&#1077;&#1084;</option>
+                        <option value="hasStaff">&#1058;&#1086;&#1083;&#1100;&#1082;&#1086; &#1077;&#1089;&#1083;&#1080; &#1077;&#1089;&#1090;&#1100; &#1089;&#1086;&#1090;&#1088;&#1091;&#1076;&#1085;&#1080;&#1082;&#1080;</option>
+                        <option value="noStaff">&#1058;&#1086;&#1083;&#1100;&#1082;&#1086; &#1077;&#1089;&#1083;&#1080; &#1089;&#1086;&#1090;&#1088;&#1091;&#1076;&#1085;&#1080;&#1082;&#1086;&#1074; &#1085;&#1077;&#1090;</option>
+                    </select>
                 </div>
                 <div id="esq-options-wrap">
                     <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Варианты через |</label>
@@ -1150,6 +1158,59 @@
             return [...cloneCandidateFields(DEFAULT_CANDIDATE_FIELDS), ...legacyExtraFields];
         }
 
+        function normalizeYesNo(value) {
+            const normalized = String(value || '').trim().toLowerCase();
+            if (!normalized) return null;
+            if (['да', 'yes', 'y', 'true', '1', 'есть'].includes(normalized)) return true;
+            if (['нет', 'no', 'n', 'false', '0', 'нет сотрудников', 'не было', 'нету'].includes(normalized)) return false;
+            if (normalized.includes('нет')) return false;
+            if (normalized.includes('да') || normalized.includes('есть')) return true;
+            return null;
+        }
+
+        function getCandidateHasStaffValue(useCandidateFallback = true) {
+            const field = getCampaignCandidateFields(activeCampaign).find(item => item.systemKey === 'hasStaff');
+            if (!field) return useCandidateFallback && currentCandidate?.hasStaff ? normalizeYesNo(currentCandidate.hasStaff) : null;
+            const control = Array.from(document.querySelectorAll('[data-candidate-field-id]'))
+                .find(el => String(el.dataset.candidateFieldId) === String(field.id));
+            if (control) return normalizeYesNo(control.value);
+            return useCandidateFallback && currentCandidate?.hasStaff ? normalizeYesNo(currentCandidate.hasStaff) : null;
+        }
+
+        function getSurveyHasStaffValue() {
+            const surveyQuestions = activeCampaign?.survey?.questions || [];
+            const staffQuestion = surveyQuestions.find(q => {
+                const text = String(q.question || '').toLowerCase();
+                const options = (q.options || []).map(opt => normalizeYesNo(opt)).filter(value => value !== null);
+                return (text.includes('сотрудник') || text.includes('менеджер') || text.includes('подчин')) && options.includes(true) && options.includes(false);
+            });
+            if (!staffQuestion) return getCandidateHasStaffValue();
+            const answer = surveyAnswersState[staffQuestion.id];
+            const value = Array.isArray(answer) ? answer[0] : answer;
+            return normalizeYesNo(value) ?? getCandidateHasStaffValue();
+        }
+
+        function shouldShowStaffConditionalItem(item, hasStaff) {
+            const condition = item?.staffCondition || 'all';
+            if (condition === 'hasStaff') return hasStaff === true;
+            if (condition === 'noStaff') return hasStaff === false;
+            return true;
+        }
+
+        function normalizeStaffCondition(value) {
+            const normalized = String(value || '').trim().toLowerCase();
+            if (['hasstaff', 'withstaff', 'yes', 'да', 'есть', 'есть сотрудники'].includes(normalized)) return 'hasStaff';
+            if (['nostaff', 'withoutstaff', 'no', 'нет', 'нет сотрудников'].includes(normalized)) return 'noStaff';
+            return 'all';
+        }
+
+        function getVisibleCandidateFields(campaign, useCandidateFallback = false) {
+            const fields = getCampaignCandidateFields(campaign);
+            const hasStaffField = fields.find(field => field.systemKey === 'hasStaff');
+            const hasStaff = hasStaffField ? getCandidateHasStaffValue(useCandidateFallback) : true;
+            return fields.filter(field => field.systemKey !== 'staffCount' || hasStaff === true);
+        }
+
         function escapeHtml(value) {
             return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
         }
@@ -1311,10 +1372,11 @@
         // Экспорт результатов соискателей в полноценный Excel-отчет
         function downloadSurveyTemplate() {
             const templateData = [
-                { Question: "Оцените удобство прохождения теста", Type: "scale", Options: "", Required: "yes", ScaleMax: 5 },
-                { Question: "Какой формат обучения вам удобнее?", Type: "choice", Options: "Онлайн|Офлайн|Смешанный", Required: "yes", ScaleMax: "" },
-                { Question: "Какие форматы вам подходят?", Type: "multichoice", Options: "Онлайн|Офлайн|Самостоятельно", Required: "yes", ScaleMax: "" },
-                { Question: "Оставьте комментарий", Type: "text", Options: "", Required: "no", ScaleMax: "" }
+                { Question: "Есть ли у вас сотрудники?", Type: "choice", Options: "Да|Нет", Required: "yes", ScaleMax: "", StaffCondition: "all" },
+                { Question: "Оцените удобство прохождения теста", Type: "scale", Options: "", Required: "yes", ScaleMax: 5, StaffCondition: "all" },
+                { Question: "Какой формат обучения вам удобнее?", Type: "choice", Options: "Онлайн|Офлайн|Смешанный", Required: "yes", ScaleMax: "", StaffCondition: "all" },
+                { Question: "Сколько сотрудников в вашей команде?", Type: "text", Options: "", Required: "yes", ScaleMax: "", StaffCondition: "hasStaff" },
+                { Question: "Оставьте комментарий", Type: "text", Options: "", Required: "no", ScaleMax: "", StaffCondition: "all" }
             ];
             const worksheet = XLSX.utils.json_to_sheet(templateData);
             const workbook = XLSX.utils.book_new();
@@ -1701,7 +1763,7 @@
         /* ==================== ТЕСТИРОВАНИЕ КАНДИДАТОВ ==================== */
         function startTest(e) {
             e.preventDefault();
-            const candidateFields = getCampaignCandidateFields(activeCampaign);
+            const candidateFields = getVisibleCandidateFields(activeCampaign);
             const fieldAnswers = candidateFields.map(field => {
                 const matchingElements = Array.from(document.querySelectorAll('[data-candidate-field-id]'))
                     .filter(el => String(el.dataset.candidateFieldId) === String(field.id));
@@ -1960,6 +2022,8 @@
 
         function setSurveyAnswer(questionId, value) {
             surveyAnswersState[questionId] = typeof value === 'string' ? value.trim() : value;
+            const question = (activeCampaign?.survey?.questions || []).find(q => String(q.id) === String(questionId));
+            if (isStaffDetectorQuestion(question)) renderSurveyQuestions();
         }
 
         function setSurveyMultiAnswer(questionId, value, checked) {
@@ -1969,25 +2033,37 @@
                 : current.filter(item => item !== value);
         }
 
+        function isStaffDetectorQuestion(question) {
+            const text = String(question?.question || '').toLowerCase();
+            return text.includes('сотрудник') || text.includes('менеджер') || text.includes('подчин');
+        }
+
+        function getVisibleSurveyQuestions(survey) {
+            const hasStaff = getSurveyHasStaffValue();
+            return (survey?.questions || []).filter(q => shouldShowStaffConditionalItem(q, hasStaff));
+        }
+
         function renderSurveyQuestions() {
             const box = document.getElementById('survey-questions-container');
             if (!box) return;
             box.innerHTML = '';
             const survey = activeCampaign?.survey || {};
-            (survey.questions || []).forEach((q, idx) => {
+            const visibleQuestions = getVisibleSurveyQuestions(survey);
+            visibleQuestions.forEach((q, idx) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-3';
                 const required = survey.required !== false && (q.required !== false || (survey.freeRequired && q.type === 'text'));
                 let control = '';
                 if (q.type === 'choice') {
-                    control = (q.options || []).slice(0, 8).map(opt => `<label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 text-sm"><input type="radio" name="survey_${q.id}" value="${opt}" onchange="setSurveyAnswer('${q.id}', this.value)"> <span>${opt}</span></label>`).join('');
+                    control = (q.options || []).slice(0, 8).map(opt => `<label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 text-sm"><input type="radio" name="survey_${q.id}" value="${opt}" ${surveyAnswersState[q.id] === opt ? 'checked' : ''} onchange="setSurveyAnswer('${q.id}', this.value)"> <span>${opt}</span></label>`).join('');
                 } else if (q.type === 'multichoice') {
-                    control = (q.options || []).slice(0, 8).map(opt => `<label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 text-sm"><input type="checkbox" value="${opt}" onchange="setSurveyMultiAnswer('${q.id}', this.value, this.checked)"> <span>${opt}</span></label>`).join('');
+                    const currentValues = Array.isArray(surveyAnswersState[q.id]) ? surveyAnswersState[q.id] : [];
+                    control = (q.options || []).slice(0, 8).map(opt => `<label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 text-sm"><input type="checkbox" value="${opt}" ${currentValues.includes(opt) ? 'checked' : ''} onchange="setSurveyMultiAnswer('${q.id}', this.value, this.checked)"> <span>${opt}</span></label>`).join('');
                 } else if (q.type === 'scale') {
                     const max = q.scaleMax || 5;
-                    control = `<div class="flex flex-wrap gap-2">${Array.from({length: max}, (_, i) => i + 1).map(val => `<label class="px-3 py-2 bg-white rounded-lg border border-slate-200 text-sm font-bold cursor-pointer"><input class="mr-1" type="radio" name="survey_${q.id}" value="${val}" onchange="setSurveyAnswer('${q.id}', this.value)">${val}</label>`).join('')}</div>`;
+                    control = `<div class="flex flex-wrap gap-2">${Array.from({length: max}, (_, i) => i + 1).map(val => `<label class="px-3 py-2 bg-white rounded-lg border border-slate-200 text-sm font-bold cursor-pointer"><input class="mr-1" type="radio" name="survey_${q.id}" value="${val}" ${String(surveyAnswersState[q.id]) === String(val) ? 'checked' : ''} onchange="setSurveyAnswer('${q.id}', this.value)">${val}</label>`).join('')}</div>`;
                 } else {
-                    control = `<textarea rows="3" class="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none" oninput="setSurveyAnswer('${q.id}', this.value)"></textarea>`;
+                    control = `<textarea rows="3" class="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none" oninput="setSurveyAnswer('${q.id}', this.value)">${escapeHtml(surveyAnswersState[q.id] || '')}</textarea>`;
                 }
                 wrap.innerHTML = `<div class="text-sm font-bold text-slate-900">${idx + 1}. ${q.question} ${required ? '<span class="text-rose-500">*</span>' : ''}</div><div class="space-y-2">${control}</div>`;
                 box.appendChild(wrap);
@@ -1997,13 +2073,14 @@
         async function submitSurvey(e) {
             e.preventDefault();
             const survey = activeCampaign?.survey || {};
-            const missing = (survey.questions || []).some(q => {
+            const visibleQuestions = getVisibleSurveyQuestions(survey);
+            const missing = visibleQuestions.some(q => {
                 const required = survey.required !== false && (q.required !== false || (survey.freeRequired && q.type === 'text'));
                 const answer = surveyAnswersState[q.id];
                 return required && (Array.isArray(answer) ? answer.length === 0 : !answer);
             });
             if (missing) return showToast('Заполните обязательные вопросы анкеты.', 'error');
-            currentCandidate.surveyAnswers = (survey.questions || []).map(q => {
+            currentCandidate.surveyAnswers = visibleQuestions.map(q => {
                 const answer = surveyAnswersState[q.id] || '';
                 return { question: q.question, type: q.type, answer: Array.isArray(answer) ? answer.join(', ') : answer };
             });
@@ -2596,7 +2673,8 @@
                 const item = document.createElement('div');
                 item.className = 'p-3 flex items-center justify-between gap-3 hover:bg-slate-50';
                 const encodedId = encodeURIComponent(String(q.id));
-                item.innerHTML = `<div class="truncate"><span class="font-bold text-slate-700">#${idx + 1} ${escapeHtml(q.type)}</span><span class="text-slate-600 ml-1">${escapeHtml(q.question)}</span></div><div class="flex items-center gap-2 shrink-0"><button type="button" onclick="openSurveyQuestionEditor('${encodedId}')" class="text-slate-600 hover:text-brand-orange font-bold">Изменить</button><button type="button" onclick="deleteWizardSurveyQuestion('${encodedId}')" class="text-rose-500 hover:text-rose-700 font-bold"><i class="fa-solid fa-trash-can"></i></button></div>`;
+                const conditionLabel = q.staffCondition === 'hasStaff' ? ' · если есть сотрудники' : (q.staffCondition === 'noStaff' ? ' · если сотрудников нет' : '');
+                item.innerHTML = `<div class="truncate"><span class="font-bold text-slate-700">#${idx + 1} ${escapeHtml(q.type)}</span><span class="text-slate-600 ml-1">${escapeHtml(q.question)}</span><span class="text-slate-400">${conditionLabel}</span></div><div class="flex items-center gap-2 shrink-0"><button type="button" onclick="openSurveyQuestionEditor('${encodedId}')" class="text-slate-600 hover:text-brand-orange font-bold">Изменить</button><button type="button" onclick="deleteWizardSurveyQuestion('${encodedId}')" class="text-rose-500 hover:text-rose-700 font-bold"><i class="fa-solid fa-trash-can"></i></button></div>`;
                 box.appendChild(item);
             });
         }
@@ -2606,7 +2684,7 @@
             if (!question) return;
             const type = (prompt('Тип: choice, multichoice, text или scale', 'text') || 'text').trim().toLowerCase();
             if (!['choice', 'multichoice', 'text', 'scale'].includes(type)) return showToast('Используйте choice, multichoice, text или scale.', 'error');
-            const item = { id: Date.now() + Math.floor(Math.random() * 1000), question, type, options: [], required: true, scaleMax: 5 };
+            const item = { id: Date.now() + Math.floor(Math.random() * 1000), question, type, options: [], required: true, scaleMax: 5, staffCondition: 'all' };
             if (type === 'choice' || type === 'multichoice') {
                 item.options = (prompt('Options separated by |', 'Yes|No') || '').split('|').map(v => v.trim()).filter(Boolean).slice(0, 8);
                 if (item.options.length < 2) return showToast('Choice questions need at least two options.', 'error');
@@ -2626,6 +2704,7 @@
             document.getElementById('esq-required').value = question.required === false ? 'no' : 'yes';
             document.getElementById('esq-options').value = (question.options || []).join(' | ');
             document.getElementById('esq-scale-max').value = question.scaleMax || 5;
+            document.getElementById('esq-staff-condition').value = question.staffCondition || 'all';
             updateSurveyQuestionEditorFields();
             document.getElementById('edit-survey-question-modal').classList.remove('hidden');
         }
@@ -2654,6 +2733,7 @@
                 type,
                 options: ['choice', 'multichoice'].includes(type) ? options : [],
                 required: document.getElementById('esq-required').value === 'yes',
+                staffCondition: document.getElementById('esq-staff-condition').value || 'all',
                 scaleMax: type === 'scale' ? Math.max(2, Math.min(10, parseInt(document.getElementById('esq-scale-max').value, 10) || 5)) : 5
             } : question);
             renderWizardSurveyQuestionsList();
@@ -2686,7 +2766,7 @@
                         if (!question || !['choice', 'multichoice', 'text', 'scale'].includes(type)) return null;
                         const options = (row.Options || row['Варианты'] || '').toString().split('|').map(v => v.trim()).filter(Boolean).slice(0, 8);
                         if (['choice', 'multichoice'].includes(type) && options.length < 2) return null;
-                        return { id: Date.now() + i + Math.floor(Math.random() * 1000), question, type, options, required: !['no', 'false', '0', 'нет'].includes((row.Required || row['Обязательный'] || 'yes').toString().trim().toLowerCase()), scaleMax: Math.max(2, Math.min(10, parseInt(row.ScaleMax || row['МаксимумШкалы'] || 5, 10) || 5)) };
+                        return { id: Date.now() + i + Math.floor(Math.random() * 1000), question, type, options, required: !['no', 'false', '0', 'нет'].includes((row.Required || row['Обязательный'] || 'yes').toString().trim().toLowerCase()), scaleMax: Math.max(2, Math.min(10, parseInt(row.ScaleMax || row['МаксимумШкалы'] || 5, 10) || 5)), staffCondition: normalizeStaffCondition(row.StaffCondition || row['УсловиеСотрудников'] || row['Условие']) };
                     }).filter(Boolean);
                     if (!parsed.length) return showToast('No valid survey questions found.', 'error');
                     wizardSurveyQuestions = [...wizardSurveyQuestions, ...parsed];
@@ -2804,14 +2884,26 @@
         function renderCandidateCustomFields() {
             const box = document.getElementById('candidate-custom-fields-container');
             if (!box) return;
-            const fields = getCampaignCandidateFields(activeCampaign);
+            const previousValues = {};
+            Array.from(box.querySelectorAll('[data-candidate-field-id]')).forEach(el => {
+                const id = el.dataset.candidateFieldId;
+                if (el.type === 'checkbox') {
+                    if (!previousValues[id]) previousValues[id] = [];
+                    if (el.checked) previousValues[id].push(el.value);
+                } else {
+                    previousValues[id] = el.value;
+                }
+            });
+            const fields = getVisibleCandidateFields(activeCampaign);
             box.innerHTML = '';
             fields.forEach(field => {
                 const wrap = document.createElement('div');
                 const required = field.required ? 'required' : '';
                 let control = '';
                 if (field.type === 'select') {
+                    const onChange = field.systemKey === 'hasStaff' ? 'onchange="renderCandidateCustomFields()"' : '';
                     control = `<select data-candidate-field-id="${escapeHtml(field.id)}" ${required} class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-800"><option value="">Выберите вариант</option>${(field.options || []).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}</select>`;
+                    if (onChange) control = control.replace('<select ', `<select ${onChange} `);
                 } else if (field.type === 'multiselect') {
                     control = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${(field.options || []).map(opt => `<label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer"><input type="checkbox" data-candidate-field-id="${escapeHtml(field.id)}" value="${escapeHtml(opt)}" class="rounded text-brand-orange focus:ring-brand-orange"><span class="text-xs font-semibold text-slate-700">${escapeHtml(opt)}</span></label>`).join('')}</div>`;
                 } else {
@@ -2819,6 +2911,13 @@
                 }
                 wrap.innerHTML = `<label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">${escapeHtml(field.label)}${field.required ? ' *' : ''}</label>${control}`;
                 box.appendChild(wrap);
+                const controls = Array.from(wrap.querySelectorAll('[data-candidate-field-id]'));
+                if (field.type === 'multiselect') {
+                    const values = previousValues[field.id] || [];
+                    controls.forEach(el => { el.checked = values.includes(el.value); });
+                } else if (controls[0] && previousValues[field.id] !== undefined) {
+                    controls[0].value = previousValues[field.id];
+                }
             });
         }
 
