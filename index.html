@@ -244,6 +244,7 @@
                 <div class="space-y-3">
                     <h1 class="text-3xl font-black text-slate-900 tracking-tight">&#1042;&#1072;&#1096;&#1080; &#1086;&#1090;&#1074;&#1077;&#1090;&#1099; &#1073;&#1099;&#1083;&#1080; &#1091;&#1089;&#1087;&#1077;&#1096;&#1085;&#1086; &#1079;&#1072;&#1092;&#1080;&#1082;&#1089;&#1080;&#1088;&#1086;&#1074;&#1072;&#1085;&#1099;!</h1>
                     <p class="text-slate-500 text-base max-w-md mx-auto leading-relaxed">&#1052;&#1086;&#1078;&#1077;&#1090;&#1077; &#1079;&#1072;&#1082;&#1088;&#1099;&#1090;&#1100; &#1101;&#1090;&#1086; &#1086;&#1082;&#1085;&#1086; &#1080;&#1083;&#1080; &#1074;&#1077;&#1088;&#1085;&#1091;&#1090;&#1100;&#1089;&#1103; &#1085;&#1072; &#1075;&#1083;&#1072;&#1074;&#1085;&#1091;&#1102; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1091;.</p>
+                    <p id="result-save-receipt" class="text-xs font-semibold text-emerald-700"></p>
                 </div>
                 <button onclick="resetTestingFlow()" class="bg-slate-900 text-brand-orange hover:bg-black hover:text-white transition py-3 px-6 rounded-xl font-bold text-sm border border-brand-orange/20">&#1042;&#1077;&#1088;&#1085;&#1091;&#1090;&#1100;&#1089;&#1103; &#1085;&#1072; &#1075;&#1083;&#1072;&#1074;&#1085;&#1091;&#1102;</button>
             </div>
@@ -549,6 +550,9 @@
                                 <option value="draft">Черновик</option>
                             </select>
                         </div>
+                        <button id="deleted-results-toggle" onclick="toggleDeletedResults()" class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:text-brand-orange transition">
+                            <i class="fa-solid fa-trash-arrow-up mr-1"></i> Корзина результатов
+                        </button>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -1075,6 +1079,7 @@
         let campaigns = JSON.parse(localStorage.getItem('testograf_campaigns_v2')) || [];
         const storedCandidates = JSON.parse(localStorage.getItem('testograf_candidates_v2')) || [];
         let candidatesDb = [...new Map(storedCandidates.map(item => [item.id, item])).values()];
+        let showDeletedResultsMode = false;
 
         // Заполнение при пустом старте
         if (questions.length === 0) {
@@ -2170,9 +2175,7 @@
                 return;
             }
 
-            await persistCandidateResult(currentCandidate);
-
-            switchView('results');
+            if (await persistCandidateResult(currentCandidate)) switchView('results');
         }
 
         function showSurvey(phase) {
@@ -2261,8 +2264,7 @@
             if (currentSurveyPhase === 'before') {
                 startActualTest();
             } else {
-                await persistCandidateResult(currentCandidate);
-                switchView('results');
+                if (await persistCandidateResult(currentCandidate)) switchView('results');
             }
         }
 
@@ -2271,8 +2273,7 @@
             if (currentSurveyPhase === 'before') {
                 startActualTest();
             } else {
-                await persistCandidateResult(currentCandidate);
-                switchView('results');
+                if (await persistCandidateResult(currentCandidate)) switchView('results');
             }
         }
 
@@ -2285,30 +2286,42 @@
         }
 
         async function persistCandidateResult(cand) {
-            if (!cand?.id) return;
+            if (!cand?.id) return false;
             if (candidateSavePromises.has(cand.id)) return candidateSavePromises.get(cand.id);
             const savePromise = (async () => {
                 const pendingCandidate = { ...cand, syncStatus: 'pending' };
-                // Сначала фиксируем результат на устройстве, чтобы он не потерялся при сетевой ошибке.
                 saveCandidateLocally(pendingCandidate, false);
-                try {
-                    const response = await fetch('/api/results', {
-                        method: 'POST',
-                        headers: { 'content-type': 'application/json' },
-                        body: JSON.stringify({ result: cand })
-                    });
-                    if (!response.ok && response.status !== 409) throw new Error(`API ${response.status}`);
-                    const syncedCandidate = { ...cand, syncStatus: 'synced' };
-                    saveCandidateLocally(syncedCandidate, false);
-                    showToast("Ваш результат сохранен!");
-                    return;
-                } catch (error) {
-                    console.error("Ошибка сохранения результата:", error);
+                const delays = [0, 600, 1500, 3000, 5000];
+                for (let attempt = 0; attempt < delays.length; attempt++) {
+                    if (delays[attempt]) await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                    try {
+                        const response = await fetch('/api/results', {
+                            method: 'POST',
+                            headers: { 'content-type': 'application/json' },
+                            body: JSON.stringify({ result: cand })
+                        });
+                        if (!response.ok && response.status !== 409) throw new Error(`API ${response.status}`);
+                        const confirmation = response.status === 409 ? { id: cand.id, confirmed: true } : await response.json();
+                        if (!confirmation.id) throw new Error('Server confirmation is missing');
+                        const syncedCandidate = { ...cand, syncStatus: 'synced', saveReceipt: confirmation.id };
+                        saveCandidateLocally(syncedCandidate, false);
+                        const receipt = document.getElementById('result-save-receipt');
+                        if (receipt) receipt.textContent = `Результат сохранён. Номер записи: ${confirmation.id}`;
+                        showToast("Результат подтверждён сервером и сохранён!");
+                        return true;
+                    } catch (error) {
+                        console.error(`Ошибка сохранения результата, попытка ${attempt + 1}:`, error);
+                    }
                 }
-                showToast("Результат сохранен на этом устройстве и будет отправлен после восстановления соединения.", "info");
+                showToast("Сервер пока не подтвердил сохранение. Не закрывайте страницу и повторите отправку.", "error");
+                return false;
             })();
             candidateSavePromises.set(cand.id, savePromise);
-            return savePromise;
+            try {
+                return await savePromise;
+            } finally {
+                candidateSavePromises.delete(cand.id);
+            }
         }
 
         async function retryPendingResults() {
@@ -2329,15 +2342,15 @@
             }
         }
 
-        async function loadCloudResults() {
+        async function loadCloudResults(showDeleted = false) {
             if (!auth?.currentUser || auth.currentUser.email?.toLowerCase() !== ADMIN_EMAIL) return;
             try {
                 const token = await auth.currentUser.getIdToken();
-                const response = await fetch('/api/results', { headers: { authorization: `Bearer ${token}` } });
+                const response = await fetch(`/api/results${showDeleted ? '?deleted=1' : ''}`, { headers: { authorization: `Bearer ${token}` } });
                 if (!response.ok) throw new Error(`API ${response.status}`);
                 const cloudResults = (await response.json()).results || [];
                 let legacyResults = [];
-                if (isFirebaseActive && db) {
+                if (!showDeleted && isFirebaseActive && db) {
                     try {
                         const legacySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'candidates'));
                         legacySnapshot.forEach(item => legacyResults.push({ id: item.id, ...item.data() }));
@@ -2346,13 +2359,14 @@
                     }
                 }
 
-                const merged = new Map(candidatesDb.map(item => [item.id, item]));
+                const merged = new Map(showDeleted ? [] : candidatesDb.map(item => [item.id, item]));
                 legacyResults.forEach(item => merged.set(item.id, item));
                 cloudResults.forEach(item => merged.set(item.id, item));
                 candidatesDb = Array.from(merged.values()).sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
                 localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
                 renderAdminDashboard();
 
+                if (showDeleted) return;
                 const cloudIds = new Set(cloudResults.map(item => item.id));
                 const deletedIds = new Set();
                 for (const candidate of candidatesDb.filter(item => item.id && !cloudIds.has(item.id))) {
@@ -2559,9 +2573,11 @@
                     </td>
                     <td class="p-4 text-xs text-slate-400 font-medium">${cand.date}</td>
                     <td class="p-4 text-right">
-                        <button onclick="deleteCandidate('${cand.id}')" class="text-rose-400 hover:text-rose-600 p-2 rounded-lg transition" title="Удалить результаты">
-                            <i class="fa-regular fa-trash-can"></i>
-                        </button>
+                        ${cand.deletedAt ? `
+                            <button onclick="restoreCandidate('${cand.id}')" class="text-emerald-600 hover:text-emerald-700 p-2 rounded-lg transition" title="Восстановить результат"><i class="fa-solid fa-trash-arrow-up"></i></button>
+                        ` : `
+                            <button onclick="deleteCandidate('${cand.id}')" class="text-rose-400 hover:text-rose-600 p-2 rounded-lg transition" title="Переместить в корзину"><i class="fa-regular fa-trash-can"></i></button>
+                        `}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -3619,7 +3635,7 @@
         }
 
         async function deleteCandidate(id) {
-            if (confirm("Вы уверены, что хотите безвозвратно удалить результаты кандидата?")) {
+            if (confirm("Переместить результат в корзину? Его можно будет восстановить.")) {
                 candidatesDb = candidatesDb.filter(c => c.id !== id);
                 localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
 
@@ -3639,8 +3655,33 @@
                     }
                 }
 
-                showToast("Запись кандидата удалена", "info");
+                showToast("Результат перемещён в корзину", "info");
                 renderAdminDashboard();
+            }
+        }
+
+        async function toggleDeletedResults() {
+            showDeletedResultsMode = !showDeletedResultsMode;
+            const button = document.getElementById('deleted-results-toggle');
+            if (button) button.innerHTML = showDeletedResultsMode
+                ? '<i class="fa-solid fa-arrow-left mr-1"></i> Вернуться к результатам'
+                : '<i class="fa-solid fa-trash-arrow-up mr-1"></i> Корзина результатов';
+            await loadCloudResults(showDeletedResultsMode);
+        }
+
+        async function restoreCandidate(id) {
+            try {
+                const token = await auth?.currentUser?.getIdToken();
+                const response = await fetch(`/api/results?id=${encodeURIComponent(id)}`, {
+                    method: 'PATCH',
+                    headers: { authorization: `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error(`API ${response.status}`);
+                showToast('Результат восстановлен.');
+                await loadCloudResults(true);
+            } catch (error) {
+                console.error('Не удалось восстановить результат:', error);
+                showToast('Не удалось восстановить результат.', 'error');
             }
         }
 
@@ -3959,6 +4000,8 @@
         window.closeEditQuestionModal = closeEditQuestionModal;
         window.saveEditedQuestion = saveEditedQuestion;
         window.deleteCandidate = deleteCandidate;
+        window.restoreCandidate = restoreCandidate;
+        window.toggleDeletedResults = toggleDeletedResults;
         window.deleteQuestion = deleteQuestion;
         window.resetToDefaultQuestions = resetToDefaultQuestions;
         window.closeSkillsAnalysisModal = closeSkillsAnalysisModal;
