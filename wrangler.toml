@@ -2,6 +2,10 @@ name = "testograf-app"
 compatibility_date = "2026-06-23"
 pages_build_output_dir = "."
 
+[vars]
+ADMIN_EMAIL = "psnkzeducation@gmail.com"
+FIREBASE_API_KEY = "AIzaSyBvX9x2IFLzG5nf8akzWmzLuv7r442XiKY"
+
 [[kv_namespaces]]
 binding = "TESTOGRAF_TESTS"
 id = "6e6c7180c93341248c1b3d9f4176f425"

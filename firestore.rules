@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == 'psnkzeducation@gmail.com';
+    }
+
+    match /artifacts/{appId}/public/data/candidates/{candidateId} {
+      allow read, delete: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.testId is string
+        && request.resource.data.name is string
+        && request.resource.data.timestamp is int;
+      allow update: if false;
+    }
+
+    match /artifacts/{appId}/public/data/campaigns/{campaignId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /artifacts/{appId}/public/data/questions/{questionId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

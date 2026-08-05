@@ -13,6 +13,33 @@ const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), 
 
 const getStore = (context) => context.env.TESTOGRAF_TESTS;
 
+const authenticateAdmin = async (context) => {
+  const apiKey = context.env.FIREBASE_API_KEY;
+  const adminEmail = (context.env.ADMIN_EMAIL || "").toLowerCase();
+  if (!apiKey || !adminEmail) return { error: "API authentication is not configured", status: 500 };
+
+  const authorization = context.request.headers.get("authorization") || "";
+  const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  if (!token) return { error: "Authentication required", status: 401 };
+
+  try {
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ idToken: token }),
+    });
+    if (!response.ok) return { error: "Invalid authentication token", status: 401 };
+    const data = await response.json();
+    const user = data.users?.[0];
+    if (!user?.email || user.email.toLowerCase() !== adminEmail) {
+      return { error: "Administrator access required", status: 403 };
+    }
+    return { user };
+  } catch {
+    return { error: "Authentication service unavailable", status: 503 };
+  }
+};
+
 const generateTestId = () => `t_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
 
 const hasValidOptions = (options) => {
@@ -55,6 +82,9 @@ export async function onRequestPost(context) {
   const store = getStore(context);
   if (!store) return jsonResponse({ error: "KV namespace TESTOGRAF_TESTS is not configured" }, 500);
 
+  const authentication = await authenticateAdmin(context);
+  if (authentication.error) return jsonResponse({ error: authentication.error }, authentication.status);
+
   const rawBody = await context.request.text();
   if (new TextEncoder().encode(rawBody).length > MAX_PAYLOAD_BYTES) {
     return jsonResponse({ error: "Test payload is too large" }, 413);
@@ -78,8 +108,9 @@ export async function onRequestPost(context) {
     schemaVersion: 1,
     campaign: storedCampaign,
     firebaseConfig: payload?.firebaseConfig || null,
+    createdBy: authentication.user.localId,
     updatedAt: new Date().toISOString(),
-    // Future production hardening can add auth, rate limits, TTL, or archival to R2 here.
+    // Future hardening: rate limits, TTL/retention policy, and archival of large tests to R2.
   }));
 
   return jsonResponse({ id });
