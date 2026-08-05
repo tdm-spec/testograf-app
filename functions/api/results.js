@@ -1,5 +1,6 @@
 const MAX_PAYLOAD_BYTES = 512 * 1024;
 const RESULT_PREFIX = "result:";
+const DELETED_RESULT_PREFIX = "deleted-result:";
 
 const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -66,6 +67,7 @@ export async function onRequestPost(context) {
   if (validationError) return jsonResponse({ error: validationError }, 400);
 
   const key = `${RESULT_PREFIX}${result.id}`;
+  if (await store.get(`${DELETED_RESULT_PREFIX}${result.id}`)) return jsonResponse({ error: "Result was deleted" }, 410);
   if (await store.get(key)) return jsonResponse({ error: "Result already exists" }, 409);
 
   await store.put(key, JSON.stringify({
@@ -116,6 +118,7 @@ export async function onRequestDelete(context) {
   const key = `${RESULT_PREFIX}${id}`;
   if (!await store.get(key)) return jsonResponse({ error: "Result not found" }, 404);
   await store.delete(key);
+  await store.put(`${DELETED_RESULT_PREFIX}${id}`, new Date().toISOString());
   return new Response(null, { status: 204 });
 }
 

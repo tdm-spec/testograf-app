@@ -2336,11 +2336,43 @@
                 const response = await fetch('/api/results', { headers: { authorization: `Bearer ${token}` } });
                 if (!response.ok) throw new Error(`API ${response.status}`);
                 const cloudResults = (await response.json()).results || [];
-                const merged = new Map(candidatesDb.filter(item => item.syncStatus === 'pending').map(item => [item.id, item]));
+                let legacyResults = [];
+                if (isFirebaseActive && db) {
+                    try {
+                        const legacySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'candidates'));
+                        legacySnapshot.forEach(item => legacyResults.push({ id: item.id, ...item.data() }));
+                    } catch (legacyError) {
+                        console.warn('Не удалось прочитать прежние результаты из Firebase:', legacyError);
+                    }
+                }
+
+                const merged = new Map(candidatesDb.map(item => [item.id, item]));
+                legacyResults.forEach(item => merged.set(item.id, item));
                 cloudResults.forEach(item => merged.set(item.id, item));
                 candidatesDb = Array.from(merged.values()).sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
                 localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
                 renderAdminDashboard();
+
+                const cloudIds = new Set(cloudResults.map(item => item.id));
+                const deletedIds = new Set();
+                for (const candidate of candidatesDb.filter(item => item.id && !cloudIds.has(item.id))) {
+                    try {
+                        const migrationResponse = await fetch('/api/results', {
+                            method: 'POST',
+                            headers: { 'content-type': 'application/json' },
+                            body: JSON.stringify({ result: candidate })
+                        });
+                        if (migrationResponse.ok || migrationResponse.status === 409) {
+                            candidate.syncStatus = 'synced';
+                        } else if (migrationResponse.status === 410) {
+                            deletedIds.add(candidate.id);
+                        }
+                    } catch (migrationError) {
+                        console.warn('Не удалось перенести прежний результат в Cloudflare:', migrationError);
+                    }
+                }
+                if (deletedIds.size) candidatesDb = candidatesDb.filter(item => !deletedIds.has(item.id));
+                localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
             } catch (error) {
                 console.error('Не удалось загрузить результаты тестов:', error);
             }
