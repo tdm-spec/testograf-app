@@ -364,7 +364,7 @@
                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
                         <div class="flex items-center gap-2 w-full sm:w-auto">
                             <span class="font-bold text-slate-700 whitespace-nowrap"><i class="fa-solid fa-filter text-slate-400"></i> Фильтр по тесту:</span>
-                            <select id="admin-filter-campaign-select" onchange="renderCandidatesListTab()" class="p-2 bg-white border border-slate-200 rounded-lg outline-none font-semibold text-slate-800 w-full sm:w-64">
+                            <select id="admin-filter-campaign-select" class="p-2 bg-white border border-slate-200 rounded-lg outline-none font-semibold text-slate-800 w-full sm:w-64">
                                 <option value="all">Все результаты (без фильтрации)</option>
                                 <option value="default_all">Общая оценка (Все компетенции)</option>
                             </select>
@@ -976,7 +976,7 @@
             }
         }
 
-        function handleFirebaseAuthState(user) {
+        async function handleFirebaseAuthState(user) {
             const isAdmin = Boolean(user?.email && user.email.toLowerCase() === ADMIN_EMAIL);
             isAdminAuthorized = isAdmin;
             const adminButton = document.getElementById('nav-admin-btn');
@@ -984,7 +984,10 @@
 
             firebaseUnsubscribes.forEach(unsub => { try { unsub(); } catch(e) {} });
             firebaseUnsubscribes = [];
-            if (isAdmin) setupRealtimeSync();
+            if (isAdmin) {
+                setupRealtimeSync();
+                await loadCloudResults();
+            }
             else renderAdminDashboard();
         }
 
@@ -1013,8 +1016,8 @@
                 snapshot.forEach(doc => {
                     list.push({ id: doc.id, ...doc.data() });
                 });
-                // Старые версии могли сохранить одно прохождение несколько раз под разными Firestore ID.
-                const uniqueList = [...new Map(list.map(item => [item.id, item])).values()];
+                // Не теряем локальные результаты, которые ожидают отправки в облако.
+                const uniqueList = [...new Map([...candidatesDb, ...list].map(item => [item.id, item])).values()];
                 uniqueList.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
                 candidatesDb = uniqueList;
                 localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
@@ -1971,7 +1974,7 @@
             const fallbackName = fieldAnswers.find(field => field.value)?.value || 'Без имени';
 
             currentCandidate = {
-                id: `cand_${auth?.currentUser?.uid || 'local'}_${Date.now()}`,
+                id: `cand_${crypto.randomUUID().replace(/-/g, '')}`,
                 ownerUid: auth?.currentUser?.uid || 'local',
                 name: systemValues.name || fallbackName,
                 experience: systemValues.experience || '',
@@ -2306,36 +2309,61 @@
             if (!cand?.id) return;
             if (candidateSavePromises.has(cand.id)) return candidateSavePromises.get(cand.id);
             const savePromise = (async () => {
-                if (isFirebaseActive && db) {
-                    try {
-                        const candDoc = doc(db, 'artifacts', appId, 'public', 'data', 'candidates', cand.id);
-                        const syncedCandidate = { ...cand, syncStatus: 'synced' };
-                        await setDoc(candDoc, syncedCandidate);
-                        saveCandidateLocally(syncedCandidate, false);
-                        showToast("Ваш результат сохранен в облачной базе!");
-                        return;
-                    } catch (error) {
-                        console.error("Ошибка сохранения результата:", error);
-                    }
+                const pendingCandidate = { ...cand, syncStatus: 'pending' };
+                // Сначала фиксируем результат на устройстве, чтобы он не потерялся при сетевой ошибке.
+                saveCandidateLocally(pendingCandidate, false);
+                try {
+                    const response = await fetch('/api/results', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ result: cand })
+                    });
+                    if (!response.ok && response.status !== 409) throw new Error(`API ${response.status}`);
+                    const syncedCandidate = { ...cand, syncStatus: 'synced' };
+                    saveCandidateLocally(syncedCandidate, false);
+                    showToast("Ваш результат сохранен!");
+                    return;
+                } catch (error) {
+                    console.error("Ошибка сохранения результата:", error);
                 }
-                saveCandidateLocally({ ...cand, syncStatus: 'pending' });
+                showToast("Результат сохранен на этом устройстве и будет отправлен после восстановления соединения.", "info");
             })();
             candidateSavePromises.set(cand.id, savePromise);
             return savePromise;
         }
 
         async function retryPendingResults() {
-            if (!isFirebaseActive || !db || !auth?.currentUser) return;
-            const pending = candidatesDb.filter(candidate => candidate.syncStatus === 'pending' && candidate.ownerUid === auth.currentUser.uid);
+            const pending = candidatesDb.filter(candidate => candidate.syncStatus === 'pending');
             for (const candidate of pending) {
                 try {
-                    const candidateDoc = doc(db, 'artifacts', appId, 'public', 'data', 'candidates', candidate.id);
+                    const response = await fetch('/api/results', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ result: candidate })
+                    });
+                    if (!response.ok && response.status !== 409) throw new Error(`API ${response.status}`);
                     const syncedCandidate = { ...candidate, syncStatus: 'synced' };
-                    await setDoc(candidateDoc, syncedCandidate);
                     saveCandidateLocally(syncedCandidate, false);
                 } catch (error) {
                     console.error('Повторная отправка результата не удалась:', error);
                 }
+            }
+        }
+
+        async function loadCloudResults() {
+            if (!auth?.currentUser || auth.currentUser.email?.toLowerCase() !== ADMIN_EMAIL) return;
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/results', { headers: { authorization: `Bearer ${token}` } });
+                if (!response.ok) throw new Error(`API ${response.status}`);
+                const cloudResults = (await response.json()).results || [];
+                const merged = new Map(candidatesDb.map(item => [item.id, item]));
+                cloudResults.forEach(item => merged.set(item.id, item));
+                candidatesDb = Array.from(merged.values()).sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+                localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
+                renderAdminDashboard();
+            } catch (error) {
+                console.error('Не удалось загрузить результаты тестов:', error);
             }
         }
 
@@ -2419,7 +2447,16 @@
                         opt.textContent = c.title;
                         select.appendChild(opt);
                     });
-                    select.value = currentValue;
+                    // Старые результаты могут относиться к тестам, которых уже нет в активном списке.
+                    candidatesDb.forEach(candidate => {
+                        const testId = String(candidate.testId || 'default_all');
+                        if (Array.from(select.options).some(option => option.value === testId)) return;
+                        const opt = document.createElement('option');
+                        opt.value = testId;
+                        opt.textContent = candidate.testTitle || `Тест ${testId}`;
+                        select.appendChild(opt);
+                    });
+                    select.value = Array.from(select.options).some(option => option.value === currentValue) ? currentValue : 'all';
                 }
 
                 renderCandidatesListTab();
@@ -2438,7 +2475,7 @@
             const activeFilter = document.getElementById('admin-filter-campaign-select')?.value || 'all';
             const filteredDb = candidatesDb.filter(c => {
                 if (activeFilter === 'all') return true;
-                return (c.testId || "default_all") === activeFilter;
+                return String(c.testId || 'default_all') === String(activeFilter);
             });
 
             if (filteredDb.length === 0) {
@@ -3263,9 +3300,7 @@
                 const required = field.required ? 'required' : '';
                 let control = '';
                 if (field.type === 'select') {
-                    const onChange = field.systemKey === 'hasStaff' ? 'onchange="renderCandidateCustomFields()"' : '';
                     control = `<select data-candidate-field-id="${escapeHtml(field.id)}" ${required} class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-slate-800"><option value="">Выберите вариант</option>${(field.options || []).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}</select>`;
-                    if (onChange) control = control.replace('<select ', `<select ${onChange} `);
                 } else if (field.type === 'multiselect') {
                     control = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${(field.options || []).map(opt => `<label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer"><input type="checkbox" data-candidate-field-id="${escapeHtml(field.id)}" value="${escapeHtml(opt)}" class="rounded text-brand-orange focus:ring-brand-orange"><span class="text-xs font-semibold text-slate-700">${escapeHtml(opt)}</span></label>`).join('')}</div>`;
                 } else {
@@ -3280,10 +3315,8 @@
                 } else if (controls[0] && previousValues[field.id] !== undefined) {
                     controls[0].value = previousValues[field.id];
                 }
-                controls.forEach(el => {
-                    const eventName = el.type === 'text' || el.type === 'number' ? 'input' : 'change';
-                    el.addEventListener(eventName, renderCandidateCustomFields);
-                });
+                // Условия пересчитываются после завершения ввода/выбора, не после каждой буквы.
+                controls.forEach(el => el.addEventListener('change', renderCandidateCustomFields));
             });
         }
 
@@ -3855,6 +3888,8 @@
         window.closeAdminLoginModal = closeAdminLoginModal;
         window.toggleStaffCount = toggleStaffCount;
         window.startTest = startTest;
+        window.renderCandidatesListTab = renderCandidatesListTab;
+        window.renderCandidateCustomFields = renderCandidateCustomFields;
         window.previousQuestion = previousQuestion;
         window.nextQuestion = nextQuestion;
         window.resetTestingFlow = resetTestingFlow;
@@ -3911,6 +3946,7 @@
 
         async function initApp() {
             const wizardModal = document.getElementById('test-wizard-modal');
+            document.getElementById('admin-filter-campaign-select')?.addEventListener('change', renderCandidatesListTab);
             wizardModal?.addEventListener('input', () => { wizardIsDirty = true; });
             wizardModal?.addEventListener('change', () => { wizardIsDirty = true; });
             window.addEventListener('beforeunload', event => {
