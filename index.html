@@ -986,7 +986,7 @@
             firebaseUnsubscribes = [];
             if (isAdmin) {
                 setupRealtimeSync();
-                await loadCloudResults();
+                await Promise.all([loadCloudResults(), loadCloudCampaigns()]);
             }
             else renderAdminDashboard();
         }
@@ -1010,23 +1010,6 @@
             if (!isFirebaseActive || !db || auth?.currentUser?.email?.toLowerCase() !== ADMIN_EMAIL) return;
 
             // 1. Синхронизация результатов кандидатов
-            const candCol = collection(db, 'artifacts', appId, 'public', 'data', 'candidates');
-            const unsubCandidates = onSnapshot(candCol, (snapshot) => {
-                const list = [];
-                snapshot.forEach(doc => {
-                    list.push({ id: doc.id, ...doc.data() });
-                });
-                // Не теряем локальные результаты, которые ожидают отправки в облако.
-                const uniqueList = [...new Map([...candidatesDb, ...list].map(item => [item.id, item])).values()];
-                uniqueList.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
-                candidatesDb = uniqueList;
-                localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
-                renderAdminDashboard();
-            }, (error) => {
-                console.error("Отказ в доступе к кандидатам:", error);
-            });
-            firebaseUnsubscribes.push(unsubCandidates);
-
             // 2. Синхронизация базы вопросов
             const questCol = collection(db, 'artifacts', appId, 'public', 'data', 'questions');
             const unsubQuestions = onSnapshot(questCol, (snapshot) => {
@@ -1045,26 +1028,6 @@
             firebaseUnsubscribes.push(unsubQuestions);
 
             // 3. Синхронизация кампаний/контейнеров
-            const campCol = collection(db, 'artifacts', appId, 'public', 'data', 'campaigns');
-            const unsubCampaigns = onSnapshot(campCol, (snapshot) => {
-                const list = [];
-                snapshot.forEach(doc => {
-                    list.push({ id: doc.id, ...doc.data() });
-                });
-                if (list.length > 0) {
-                    campaigns = publicLinkedCampaign
-                        ? [...list.filter(item => item.id !== publicLinkedCampaign.id), publicLinkedCampaign]
-                        : list;
-                    localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
-                }
-                
-                // Переинициализируем параметры теста, чтобы соискатель мгновенно подхватил данные из облака
-                try { initCampaignConfiguration(); } catch(e) {}
-                renderAdminDashboard();
-            }, (error) => {
-                console.error("Отказ в доступе к кампаниям:", error);
-            });
-            firebaseUnsubscribes.push(unsubCampaigns);
         }
 
         /* ==================== СТРУКТУРЫ ПО УМОЛЧАНИЮ ==================== */
@@ -1796,6 +1759,22 @@
             return getShortCampaignUrl(result.id);
         }
 
+        async function updateShortCampaign(campaign) {
+            if (['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+                throw new Error('Cloudflare API is unavailable in local static preview');
+            }
+            const idToken = await auth?.currentUser?.getIdToken();
+            if (!idToken || auth.currentUser.email?.toLowerCase() !== ADMIN_EMAIL) throw new Error('Administrator authentication is required');
+            const response = await fetch(`/api/tests?id=${encodeURIComponent(campaign.id)}`, {
+                method: 'PUT',
+                headers: { 'content-type': 'application/json', authorization: `Bearer ${idToken}` },
+                body: JSON.stringify({ campaign })
+            });
+            if (!response.ok) throw new Error(`Test update returned ${response.status}`);
+            campaign.shortCode = campaign.id;
+            return getShortCampaignUrl(campaign.id);
+        }
+
         async function loadShortCampaignFromUrl() {
             const hashParams = new URLSearchParams(window.location.hash.replace(/^#\??/, ''));
             const shortCode = hashParams.get('t');
@@ -2357,13 +2336,29 @@
                 const response = await fetch('/api/results', { headers: { authorization: `Bearer ${token}` } });
                 if (!response.ok) throw new Error(`API ${response.status}`);
                 const cloudResults = (await response.json()).results || [];
-                const merged = new Map(candidatesDb.map(item => [item.id, item]));
+                const merged = new Map(candidatesDb.filter(item => item.syncStatus === 'pending').map(item => [item.id, item]));
                 cloudResults.forEach(item => merged.set(item.id, item));
                 candidatesDb = Array.from(merged.values()).sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
                 localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
                 renderAdminDashboard();
             } catch (error) {
                 console.error('Не удалось загрузить результаты тестов:', error);
+            }
+        }
+
+        async function loadCloudCampaigns() {
+            if (!auth?.currentUser || auth.currentUser.email?.toLowerCase() !== ADMIN_EMAIL) return;
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/tests?list=1', { headers: { authorization: `Bearer ${token}` } });
+                if (!response.ok) throw new Error(`API ${response.status}`);
+                const cloudCampaigns = ((await response.json()).tests || []).map(item => ({ ...item, shortCode: item.id }));
+                const localOnly = campaigns.filter(item => item.id === 'default_all' || !String(item.id).startsWith('t_'));
+                campaigns = [...localOnly, ...cloudCampaigns];
+                localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
+                renderAdminDashboard();
+            } catch (error) {
+                console.error('Не удалось загрузить каталог тестов:', error);
             }
         }
 
@@ -2655,6 +2650,9 @@
                             <button onclick="setCampaignArchived('${c.id}', ${!archived})" class="text-slate-500 hover:text-brand-orange p-1.5 rounded-lg transition" title="${archived ? 'Вернуть в активные' : 'Переместить в архив'}">
                                 <i class="fa-solid fa-${archived ? 'rotate-left' : 'box-archive'}"></i>
                             </button>
+                            <button onclick="deleteCampaign('${c.id}')" class="text-rose-400 hover:text-rose-600 p-1.5 rounded-lg transition" title="Удалить тестирование">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
                         ` : ''}
                     </td>
                 `;
@@ -2711,13 +2709,16 @@
             campaign.archivedAt = archived ? new Date().toISOString() : null;
             campaign.updatedAt = new Date().toISOString();
             localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
-            if (isFirebaseActive && db) {
-                try {
-                    const campaignDoc = doc(db, 'artifacts', appId, 'public', 'data', 'campaigns', campaign.id);
-                    await setDoc(campaignDoc, campaign);
-                } catch (error) {
-                    console.error('Ошибка синхронизации архива:', error);
-                }
+            try {
+                if (campaign.id.startsWith('t_')) await updateShortCampaign(campaign);
+            } catch (error) {
+                campaign.archived = !archived;
+                campaign.archivedAt = campaign.archived ? campaign.archivedAt : null;
+                localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
+                console.error('Ошибка синхронизации архива:', error);
+                showToast('Не удалось изменить архив. Обновите страницу и повторите попытку.', 'error');
+                renderAdminDashboard();
+                return;
             }
             showToast(archived ? 'Тестирование перемещено в архив.' : 'Тестирование возвращено в активные.');
             renderAdminDashboard();
@@ -3384,7 +3385,9 @@
 
             let finalUrl;
             try {
-                finalUrl = await createShortCampaignUrl(campaignObj);
+                finalUrl = isNewCampaign || !campaignObj.id?.startsWith('t_')
+                    ? await createShortCampaignUrl(campaignObj)
+                    : await updateShortCampaign(campaignObj);
             } catch (error) {
                 console.warn('Короткая ссылка недоступна, используется автономная ссылка:', error);
                 const isLocalPreview = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -3545,12 +3548,19 @@
                 campaigns = campaigns.filter(c => c.id !== id);
                 localStorage.setItem('testograf_campaigns_v2', JSON.stringify(campaigns));
 
-                if (isFirebaseActive && db) {
+                if (String(id).startsWith('t_')) {
                     try {
-                        const campDoc = doc(db, 'artifacts', appId, 'public', 'data', 'campaigns', id);
-                        await deleteDoc(campDoc);
+                        const token = await auth?.currentUser?.getIdToken();
+                        const response = await fetch(`/api/tests?id=${encodeURIComponent(id)}`, {
+                            method: 'DELETE',
+                            headers: { authorization: `Bearer ${token}` }
+                        });
+                        if (!response.ok && response.status !== 404) throw new Error(`API ${response.status}`);
                     } catch (e) {
-                        console.error("Ошибка удаления кампании из Firebase:", e);
+                        console.error("Ошибка удаления теста из Cloudflare:", e);
+                        showToast('Не удалось удалить тест из облака.', 'error');
+                        await loadCloudCampaigns();
+                        return;
                     }
                 }
 
@@ -3581,12 +3591,19 @@
                 candidatesDb = candidatesDb.filter(c => c.id !== id);
                 localStorage.setItem('testograf_candidates_v2', JSON.stringify(candidatesDb));
 
-                if (isFirebaseActive && db) {
+                if (String(id).startsWith('cand_')) {
                     try {
-                        const candDoc = doc(db, 'artifacts', appId, 'public', 'data', 'candidates', id);
-                        await deleteDoc(candDoc);
+                        const token = await auth?.currentUser?.getIdToken();
+                        const response = await fetch(`/api/results?id=${encodeURIComponent(id)}`, {
+                            method: 'DELETE',
+                            headers: { authorization: `Bearer ${token}` }
+                        });
+                        if (!response.ok && response.status !== 404) throw new Error(`API ${response.status}`);
                     } catch (e) {
-                        console.error("Ошибка удаления кандидата из Firebase:", e);
+                        console.error("Ошибка удаления результата из Cloudflare:", e);
+                        showToast('Не удалось удалить результат из облака.', 'error');
+                        await loadCloudResults();
+                        return;
                     }
                 }
 

@@ -106,6 +106,19 @@ export async function onRequestGet(context) {
   return jsonResponse({ results });
 }
 
+export async function onRequestDelete(context) {
+  const store = context.env.TESTOGRAF_TESTS;
+  if (!store) return jsonResponse({ error: "KV namespace TESTOGRAF_TESTS is not configured" }, 500);
+  const authentication = await authenticateAdmin(context);
+  if (authentication.error) return jsonResponse({ error: authentication.error }, authentication.status);
+  const id = new URL(context.request.url).searchParams.get("id");
+  if (!id || !/^cand_[a-zA-Z0-9_-]{8,80}$/.test(id)) return jsonResponse({ error: "Invalid result id" }, 400);
+  const key = `${RESULT_PREFIX}${id}`;
+  if (!await store.get(key)) return jsonResponse({ error: "Result not found" }, 404);
+  await store.delete(key);
+  return new Response(null, { status: 204 });
+}
+
 export async function onRequestOptions() {
   return new Response(null, { status: 204 });
 }

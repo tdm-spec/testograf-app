@@ -103,7 +103,7 @@ export async function onRequestPost(context) {
 
   const id = await generateUniqueId(store);
   if (!id) return jsonResponse({ error: "Could not generate unique test id" }, 500);
-  const storedCampaign = { ...campaign, id };
+  const storedCampaign = { ...campaign, id, shortCode: id };
   await store.put(id, JSON.stringify({
     schemaVersion: 1,
     campaign: storedCampaign,
@@ -120,7 +120,32 @@ export async function onRequestGet(context) {
   const store = getStore(context);
   if (!store) return jsonResponse({ error: "KV namespace TESTOGRAF_TESTS is not configured" }, 500);
 
-  const id = new URL(context.request.url).searchParams.get("id");
+  const params = new URL(context.request.url).searchParams;
+  if (params.get("list") === "1") {
+    const authentication = await authenticateAdmin(context);
+    if (authentication.error) return jsonResponse({ error: authentication.error }, authentication.status);
+    const tests = [];
+    let cursor;
+    do {
+      const page = await store.list({ prefix: "t_", cursor, limit: 1000 });
+      const values = await Promise.all(page.keys.map(({ name }) => store.get(name)));
+      values.forEach((value) => {
+        if (!value) return;
+        try {
+          const parsed = JSON.parse(value);
+          const campaign = parsed?.campaign || parsed;
+          if (campaign?.id) tests.push(campaign);
+        } catch {
+          // A corrupted record must not hide the rest of the catalog.
+        }
+      });
+      cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
+    tests.sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+    return jsonResponse({ tests });
+  }
+
+  const id = params.get("id");
   if (!id || !ID_PATTERN.test(id)) return jsonResponse({ error: "Invalid test id" }, 400);
 
   const stored = await store.get(id);
@@ -131,6 +156,50 @@ export async function onRequestGet(context) {
   } catch {
     return jsonResponse({ error: "Stored test data is corrupted" }, 500);
   }
+}
+
+export async function onRequestPut(context) {
+  const store = getStore(context);
+  if (!store) return jsonResponse({ error: "KV namespace TESTOGRAF_TESTS is not configured" }, 500);
+  const authentication = await authenticateAdmin(context);
+  if (authentication.error) return jsonResponse({ error: authentication.error }, authentication.status);
+
+  const id = new URL(context.request.url).searchParams.get("id");
+  if (!id || !ID_PATTERN.test(id)) return jsonResponse({ error: "Invalid test id" }, 400);
+  const existingRaw = await store.get(id);
+  if (!existingRaw) return jsonResponse({ error: "Test not found" }, 404);
+
+  const rawBody = await context.request.text();
+  if (new TextEncoder().encode(rawBody).length > MAX_PAYLOAD_BYTES) return jsonResponse({ error: "Test payload is too large" }, 413);
+  let payload;
+  try { payload = JSON.parse(rawBody); } catch { return jsonResponse({ error: "Invalid JSON" }, 400); }
+  const campaign = payload?.campaign || payload;
+  const validationError = validateCampaign(campaign);
+  if (validationError) return jsonResponse({ error: validationError }, 400);
+
+  let existing;
+  try { existing = JSON.parse(existingRaw); } catch { return jsonResponse({ error: "Stored test data is corrupted" }, 500); }
+  const storedCampaign = { ...campaign, id, shortCode: id };
+  await store.put(id, JSON.stringify({
+    schemaVersion: 1,
+    campaign: storedCampaign,
+    firebaseConfig: payload?.firebaseConfig ?? existing.firebaseConfig ?? null,
+    createdBy: existing.createdBy || authentication.user.localId,
+    updatedAt: new Date().toISOString(),
+  }));
+  return jsonResponse({ id });
+}
+
+export async function onRequestDelete(context) {
+  const store = getStore(context);
+  if (!store) return jsonResponse({ error: "KV namespace TESTOGRAF_TESTS is not configured" }, 500);
+  const authentication = await authenticateAdmin(context);
+  if (authentication.error) return jsonResponse({ error: authentication.error }, authentication.status);
+  const id = new URL(context.request.url).searchParams.get("id");
+  if (!id || !ID_PATTERN.test(id)) return jsonResponse({ error: "Invalid test id" }, 400);
+  if (!await store.get(id)) return jsonResponse({ error: "Test not found" }, 404);
+  await store.delete(id);
+  return new Response(null, { status: 204 });
 }
 
 export async function onRequest() {
