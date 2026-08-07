@@ -1,4 +1,4 @@
-const MAX_PAYLOAD_BYTES = 512 * 1024;
+const MAX_PAYLOAD_BYTES = 4 * 1024 * 1024;
 const RESULT_PREFIX = "result:";
 const DELETED_RESULT_PREFIX = "deleted-result:";
 const BACKUP_RESULT_PREFIX = "backup:result:";

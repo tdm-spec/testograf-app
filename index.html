@@ -242,8 +242,12 @@
                     </svg>
                 </div>
                 <div class="space-y-3">
-                    <h1 class="text-3xl font-black text-slate-900 tracking-tight">&#1042;&#1072;&#1096;&#1080; &#1086;&#1090;&#1074;&#1077;&#1090;&#1099; &#1073;&#1099;&#1083;&#1080; &#1091;&#1089;&#1087;&#1077;&#1096;&#1085;&#1086; &#1079;&#1072;&#1092;&#1080;&#1082;&#1089;&#1080;&#1088;&#1086;&#1074;&#1072;&#1085;&#1099;!</h1>
-                    <p class="text-slate-500 text-base max-w-md mx-auto leading-relaxed">&#1052;&#1086;&#1078;&#1077;&#1090;&#1077; &#1079;&#1072;&#1082;&#1088;&#1099;&#1090;&#1100; &#1101;&#1090;&#1086; &#1086;&#1082;&#1085;&#1086; &#1080;&#1083;&#1080; &#1074;&#1077;&#1088;&#1085;&#1091;&#1090;&#1100;&#1089;&#1103; &#1085;&#1072; &#1075;&#1083;&#1072;&#1074;&#1085;&#1091;&#1102; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1091;.</p>
+                    <h1 id="result-completion-title" class="text-3xl font-black text-slate-900 tracking-tight">&#1042;&#1072;&#1096;&#1080; &#1086;&#1090;&#1074;&#1077;&#1090;&#1099; &#1073;&#1099;&#1083;&#1080; &#1091;&#1089;&#1087;&#1077;&#1096;&#1085;&#1086; &#1079;&#1072;&#1092;&#1080;&#1082;&#1089;&#1080;&#1088;&#1086;&#1074;&#1072;&#1085;&#1099;!</h1>
+                    <div id="result-score-summary" class="hidden mx-auto max-w-sm rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                        <div id="result-score-value" class="text-4xl font-black text-brand-orange"></div>
+                        <div id="result-pass-status" class="mt-1 text-sm font-bold"></div>
+                    </div>
+                    <p id="result-completion-message" class="text-slate-500 text-base max-w-md mx-auto leading-relaxed">&#1052;&#1086;&#1078;&#1077; &#1079;&#1072;&#1082;&#1088;&#1099;&#1090;&#1100; &#1101;&#1090;&#1086; &#1086;&#1082;&#1085;&#1086; &#1080;&#1083;&#1080; &#1074;&#1077;&#1088;&#1085;&#1091;&#1090;&#1100;&#1089;&#1103; &#1085;&#1072; &#1075;&#1083;&#1072;&#1074;&#1085;&#1091;&#1102; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1091;.</p>
                     <p id="result-save-receipt" class="text-xs font-semibold text-emerald-700"></p>
                 </div>
                 <button onclick="resetTestingFlow()" class="bg-slate-900 text-brand-orange hover:bg-black hover:text-white transition py-3 px-6 rounded-xl font-bold text-sm border border-brand-orange/20">&#1042;&#1077;&#1088;&#1085;&#1091;&#1090;&#1100;&#1089;&#1103; &#1085;&#1072; &#1075;&#1083;&#1072;&#1074;&#1085;&#1091;&#1102;</button>
@@ -353,7 +357,10 @@
                         </button>
                     </div>
                     <button id="export-candidates-btn" onclick="exportCandidatesToExcel()" class="bg-emerald-600 text-white hover:bg-emerald-700 transition text-xs font-bold py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-sm">
-                        <i class="fa-solid fa-file-export"></i> Экспорт всех в Excel
+                        <i class="fa-solid fa-file-export"></i> Общий отчет
+                    </button>
+                    <button id="export-detailed-btn" onclick="exportDetailedAnswersToExcel()" class="bg-slate-900 text-white hover:bg-black transition text-xs font-bold py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-list-check"></i> Подробный отчет
                     </button>
                     <button onclick="exportSurveyResultsToExcel()" class="bg-indigo-600 text-white hover:bg-indigo-700 transition text-xs font-bold py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-sm">
                         <i class="fa-solid fa-clipboard-list"></i> Анкеты в Excel
@@ -362,14 +369,25 @@
 
                 <!-- Панель кандидатов и результатов -->
                 <div id="admin-content-candidates" class="admin-tab-panel space-y-4">
-                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
-                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                        <div class="flex flex-col gap-1.5 w-full">
                             <span class="font-bold text-slate-700 whitespace-nowrap"><i class="fa-solid fa-filter text-slate-400"></i> Фильтр по тесту:</span>
-                            <select id="admin-filter-campaign-select" class="p-2 bg-white border border-slate-200 rounded-lg outline-none font-semibold text-slate-800 w-full sm:w-64">
+                            <select id="admin-filter-campaign-select" class="p-2 bg-white border border-slate-200 rounded-lg outline-none font-semibold text-slate-800 w-full">
                                 <option value="all">Все результаты (без фильтрации)</option>
                                 <option value="default_all">Общая оценка (Все компетенции)</option>
                             </select>
                         </div>
+                        <label class="flex flex-col gap-1.5 w-full">
+                            <span class="font-bold text-slate-700">Сотрудник:</span>
+                            <input id="admin-filter-candidate-name" type="search" placeholder="Введите имя" class="p-2 bg-white border border-slate-200 rounded-lg outline-none font-semibold text-slate-800 w-full">
+                        </label>
+                        <label class="flex flex-col gap-1.5 w-full">
+                            <span class="font-bold text-slate-700">Сортировка по дате:</span>
+                            <select id="admin-results-date-sort" class="p-2 bg-white border border-slate-200 rounded-lg outline-none font-semibold text-slate-800 w-full">
+                                <option value="newest">Сначала новые</option>
+                                <option value="oldest">Сначала старые</option>
+                            </select>
+                        </label>
                     </div>
 
                     <div class="overflow-x-auto bg-white rounded-3xl border border-slate-200/80 shadow-sm">
@@ -391,10 +409,17 @@
                 <!-- Панель Контейнеров Тестов -->
                 <div id="admin-content-campaigns" class="admin-tab-panel hidden space-y-6">
                     <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
-                        <div class="flex justify-between items-center flex-wrap gap-2">
+                        <div class="flex justify-between items-center flex-wrap gap-3">
                             <div>
                                 <h3 class="font-bold text-slate-900 text-base">Активные тестирования</h3>
                             </div>
+                            <label class="flex items-center gap-2 text-xs font-bold text-slate-600">
+                                <span>По дате:</span>
+                                <select id="admin-campaigns-date-sort" class="p-2 bg-white border border-slate-200 rounded-lg outline-none font-semibold text-slate-800">
+                                    <option value="newest">Сначала новые</option>
+                                    <option value="oldest">Сначала старые</option>
+                                </select>
+                            </label>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse text-xs">
@@ -542,6 +567,17 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Лимит времени, минут</label>
                             <input type="number" id="wz-time-limit" min="0" value="0" placeholder="0 = без лимита" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-orange/30 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Показывать итоговый балл</label>
+                            <select id="wz-show-result" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-orange/30 outline-none">
+                                <option value="no">Не показывать</option>
+                                <option value="yes">Показывать</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Проходной балл, %</label>
+                            <input type="number" id="wz-passing-score" min="0" max="100" value="70" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-orange/30 outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Статус</label>
@@ -1516,49 +1552,108 @@
             showToast("Скачивание шаблона анкеты запущено!");
         }
 
+        function getCandidateOffice(candidate) {
+            const officeField = (candidate.customFields || []).find(field =>
+                String(field.systemKey || '').toLowerCase() === 'office' ||
+                String(field.label || '').toLowerCase().includes('офис')
+            );
+            return String(candidate.office || officeField?.value || '').trim();
+        }
+
+        function getFilteredCandidates() {
+            const testId = document.getElementById('admin-filter-campaign-select')?.value || 'all';
+            const candidateName = (document.getElementById('admin-filter-candidate-name')?.value || '').trim().toLowerCase();
+            const dateSort = document.getElementById('admin-results-date-sort')?.value || 'newest';
+            return candidatesDb.filter(candidate => {
+                if (testId !== 'all' && String(candidate.testId || 'default_all') !== String(testId)) return false;
+                if (candidateName && !String(candidate.name || '').toLowerCase().includes(candidateName)) return false;
+                return Boolean(candidate.deletedAt) === showDeletedResultsMode;
+            }).sort((a, b) => {
+                const difference = Number(b.timestamp || 0) - Number(a.timestamp || 0);
+                return dateSort === 'oldest' ? -difference : difference;
+            });
+        }
+
+        function buildCandidateReportRow(c) {
+            const overallScore = calculateAverageSkillScore(c.skills, c.score ?? 0);
+            const reportRow = {
+                "ФИО сотрудника": c.name,
+                "Офис": getCandidateOffice(c),
+                "Опыт работы": c.experience || "",
+                "Среднее кол-во заявок": c.leadsCount || "",
+                "Наличие сотрудников": c.hasStaff || "",
+                "Менеджеров в подчинении": c.staffCount || "",
+                "Продаваемые направления": c.destinations || "",
+                "Тест": c.testTitle || "Общая оценка",
+                "Всего вопросов": c.totalQuestionsCount ?? "",
+                "Верных ответов": c.correctAnswersCount ?? "",
+                "Общий результат %": overallScore,
+                "Проходной балл %": c.passingScore ?? "",
+                "Статус прохождения": c.passed === true ? "Пройден" : (c.passed === false ? "Не пройден" : ""),
+                "Время прохождения": c.elapsedSeconds !== undefined && c.elapsedSeconds !== null && Number.isFinite(Number(c.elapsedSeconds)) ? formatReportDuration(Number(c.elapsedSeconds)) : "",
+                "Дата": c.date
+            };
+            Object.entries(c.skills || {}).forEach(([skill, score]) => {
+                reportRow[`Компетенция: ${skill} %`] = score;
+            });
+            (c.customFields || []).forEach(field => {
+                reportRow[`Входное поле: ${field.label}`] = field.value || "";
+            });
+            return reportRow;
+        }
+
+        function setReportColumnWidths(worksheet, rows) {
+            const headers = Object.keys(rows[0] || {});
+            worksheet['!cols'] = headers.map(header => {
+                const maxLength = Math.max(header.length, ...rows.map(row => String(row[header] ?? '').length));
+                return { wch: Math.min(Math.max(maxLength + 2, 12), 60) };
+            });
+        }
+
         function exportCandidatesToExcel() {
-            if (candidatesDb.length === 0) {
+            const selectedCandidates = getFilteredCandidates();
+            if (selectedCandidates.length === 0) {
                 showToast("Нет результатов для экспорта!", "error");
                 return;
             }
-
-            const flatReport = candidatesDb.map(c => {
-                const overallScore = calculateAverageSkillScore(c.skills, c.score ?? 0);
-                const reportRow = {
-                    "ФИО Кандидата": c.name,
-                    "Опыт работы": c.experience || "",
-                    "Среднее кол-во заявок": c.leadsCount || "",
-                    "Наличие сотрудников": c.hasStaff || "",
-                    "Менеджеров в подчинении": c.staffCount || "",
-                    "Продаваемые направления": c.destinations || "",
-                    "Тест": c.testTitle || "Общая оценка",
-                    "Всего вопросов": c.totalQuestionsCount ?? "",
-                    "Верных ответов": c.correctAnswersCount ?? "",
-                    "Общий результат %": overallScore,
-                    "Время прохождения": c.elapsedSeconds !== undefined && c.elapsedSeconds !== null && Number.isFinite(Number(c.elapsedSeconds)) ? formatReportDuration(Number(c.elapsedSeconds)) : "",
-                    "Дата": c.date
-                };
-
-                Object.entries(c.skills || {}).forEach(([skill, score]) => {
-                    reportRow[`Компетенция: ${skill} %`] = score;
-                });
-
-                (c.customFields || []).forEach(field => {
-                    reportRow[`Входное поле: ${field.label}`] = field.value || "";
-                });
-                return reportRow;
-            });
+            const flatReport = selectedCandidates.map(buildCandidateReportRow);
 
             const worksheet = XLSX.utils.json_to_sheet(flatReport);
-            const headers = Object.keys(flatReport[0] || {});
-            worksheet['!cols'] = headers.map(header => {
-                const maxLength = Math.max(header.length, ...flatReport.map(row => String(row[header] ?? '').length));
-                return { wch: Math.min(Math.max(maxLength + 2, 12), 42) };
-            });
+            setReportColumnWidths(worksheet, flatReport);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Результаты оценки");
             XLSX.writeFile(workbook, `testograf_candidates_report_${new Date().toLocaleDateString('ru-RU')}.xlsx`);
             showToast("Экспорт данных успешно завершен!");
+        }
+
+        function exportDetailedAnswersToExcel() {
+            const selectedCandidates = getFilteredCandidates();
+            if (selectedCandidates.length === 0) {
+                showToast("Нет результатов для подробного отчета!", "error");
+                return;
+            }
+            const rows = selectedCandidates.map(candidate => {
+                const row = buildCandidateReportRow(candidate);
+                if (!Array.isArray(candidate.testAnswers) || candidate.testAnswers.length === 0) {
+                    row["Детализация ответов"] = "Недоступна для прохождений, сохраненных до обновления системы";
+                    return row;
+                }
+                candidate.testAnswers.forEach((answer, index) => {
+                    const prefix = `Вопрос ${index + 1}`;
+                    row[`${prefix}: компетенция`] = answer.competency || "";
+                    row[`${prefix}: текст`] = answer.question || "";
+                    row[`${prefix}: ответ сотрудника`] = answer.selectedAnswer || "Нет ответа";
+                    row[`${prefix}: правильный ответ`] = answer.correctAnswer || "";
+                    row[`${prefix}: результат`] = answer.isCorrect ? "Верно" : "Неверно";
+                });
+                return row;
+            });
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            setReportColumnWidths(worksheet, rows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Подробные ответы");
+            XLSX.writeFile(workbook, `testograf_detailed_answers_${new Date().toLocaleDateString('ru-RU')}.xlsx`);
+            showToast("Подробный отчет сформирован!");
         }
 
         // Открытие модального окна анализа компетенций кандидата
@@ -1701,6 +1796,8 @@
             params.set('limit', c.questionLimit || 10);
             params.set('timeLimit', c.timeLimitMinutes || 0);
             params.set('shuffle', c.shuffle || 'yes');
+            params.set('showResult', c.showResult ? 'yes' : 'no');
+            params.set('passingScore', Number.isFinite(Number(c.passingScore)) ? Number(c.passingScore) : 70);
             params.set('comps', c.competencies.join(','));
             if (c.survey?.enabled && c.survey?.questions?.length) {
                 params.set('survey', btoa(unescape(encodeURIComponent(JSON.stringify(c.survey)))));
@@ -2169,6 +2266,28 @@
             currentCandidate.timestamp = Date.now();
             currentCandidate.finishReason = reason;
             currentCandidate.elapsedSeconds = testTimerSeconds;
+            currentCandidate.passingScore = Math.min(100, Math.max(0, Number(activeCampaign?.passingScore ?? 70)));
+            currentCandidate.passed = overallPct >= currentCandidate.passingScore;
+            currentCandidate.testAnswers = activeCampaignQuestions.map((question, index) => {
+                const optionEntries = Object.entries(question.options || {}).filter(([, value]) => value !== undefined && value !== null && value !== '');
+                const selectedKeys = (Array.isArray(answersState[question.id]) ? answersState[question.id] : [answersState[question.id]]).filter(Boolean).map(String);
+                const correctKeys = getCorrectAnswerKeys(question);
+                const answerLabels = keys => keys.map(key => {
+                    const matchingOption = optionEntries.find(([optionKey]) => String(optionKey) === String(key));
+                    return matchingOption ? `${matchingOption[0]}. ${matchingOption[1]}` : key;
+                }).join(' | ');
+                return {
+                    questionId: String(question.id),
+                    order: index + 1,
+                    competency: question.competency || '',
+                    question: question.question || '',
+                    selectedKeys,
+                    selectedAnswer: answerLabels(selectedKeys),
+                    correctKeys,
+                    correctAnswer: answerLabels(correctKeys),
+                    isCorrect: isQuestionAnswerCorrect(question)
+                };
+            });
 
             if (activeCampaign?.survey?.enabled && activeCampaign.survey.position === 'after' && activeCampaign.survey.questions?.length && !currentCandidate.surveyAnswers) {
                 showSurvey('after');
@@ -2176,6 +2295,25 @@
             }
 
             if (await persistCandidateResult(currentCandidate)) switchView('results');
+        }
+
+        function renderCandidateResultSummary(candidate) {
+            const showResult = activeCampaign?.showResult === true;
+            const title = document.getElementById('result-completion-title');
+            const summary = document.getElementById('result-score-summary');
+            const score = document.getElementById('result-score-value');
+            const status = document.getElementById('result-pass-status');
+            const message = document.getElementById('result-completion-message');
+            if (title) title.textContent = showResult ? 'Тест завершен' : 'Ваши ответы были успешно зафиксированы!';
+            summary?.classList.toggle('hidden', !showResult);
+            if (score) score.textContent = `${candidate?.score ?? 0}%`;
+            if (status) {
+                status.textContent = candidate?.passed ? 'Тест пройден' : 'Проходной балл не набран';
+                status.className = `mt-1 text-sm font-bold ${candidate?.passed ? 'text-emerald-600' : 'text-rose-600'}`;
+            }
+            if (message) message.textContent = showResult
+                ? `Проходной балл: ${candidate?.passingScore ?? 70}%. Ваши ответы сохранены.`
+                : 'Можете закрыть это окно или вернуться на главную страницу.';
         }
 
         function showSurvey(phase) {
@@ -2291,6 +2429,16 @@
             const savePromise = (async () => {
                 const pendingCandidate = { ...cand, syncStatus: 'pending' };
                 saveCandidateLocally(pendingCandidate, false);
+                const isLocalPreview = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+                if (isLocalPreview) {
+                    const localCandidate = { ...cand, syncStatus: 'local', saveReceipt: cand.id };
+                    saveCandidateLocally(localCandidate, false);
+                    const receipt = document.getElementById('result-save-receipt');
+                    if (receipt) receipt.textContent = '';
+                    renderCandidateResultSummary(localCandidate);
+                    showToast('Результат сохранён в локальном предпросмотре.', 'info');
+                    return true;
+                }
                 const delays = [0, 600, 1500, 3000, 5000];
                 for (let attempt = 0; attempt < delays.length; attempt++) {
                     if (delays[attempt]) await new Promise(resolve => setTimeout(resolve, delays[attempt]));
@@ -2307,6 +2455,7 @@
                         saveCandidateLocally(syncedCandidate, false);
                         const receipt = document.getElementById('result-save-receipt');
                         if (receipt) receipt.textContent = `Результат сохранён. Номер записи: ${confirmation.id}`;
+                        renderCandidateResultSummary(syncedCandidate);
                         showToast("Результат подтверждён сервером и сохранён!");
                         return true;
                     } catch (error) {
@@ -2325,6 +2474,7 @@
         }
 
         async function retryPendingResults() {
+            if (['localhost', '127.0.0.1'].includes(window.location.hostname)) return;
             const pending = candidatesDb.filter(candidate => candidate.syncStatus === 'pending');
             for (const candidate of pending) {
                 try {
@@ -2513,11 +2663,7 @@
             if (!tbody) return;
             tbody.innerHTML = '';
 
-            const activeFilter = document.getElementById('admin-filter-campaign-select')?.value || 'all';
-            const filteredDb = candidatesDb.filter(c => {
-                if (activeFilter === 'all') return true;
-                return String(c.testId || 'default_all') === String(activeFilter);
-            });
+            const filteredDb = getFilteredCandidates();
 
             if (filteredDb.length === 0) {
                 tbody.innerHTML = `
@@ -2643,8 +2789,23 @@
 
         /* РЕДАКТИРОВАНИЕ ТЕСТОВ (КОНТЕЙНЕРЫ) */
         function renderAdminCampaignsTab() {
-            renderCampaignRows('admin-campaigns-tbody', campaigns.filter(c => !c.archived), false);
+            const direction = document.getElementById('admin-campaigns-date-sort')?.value || 'newest';
+            const activeCampaigns = campaigns.filter(c => !c.archived).sort((a, b) => {
+                const difference = getCampaignSortTimestamp(b) - getCampaignSortTimestamp(a);
+                return direction === 'oldest' ? -difference : difference;
+            });
+            renderCampaignRows('admin-campaigns-tbody', activeCampaigns, false);
             renderCampaignRows('admin-archive-tbody', campaigns.filter(c => c.archived), true);
+        }
+
+        function getCampaignSortTimestamp(campaign) {
+            const directTimestamp = Date.parse(campaign.updatedAt || campaign.createdAt || '');
+            if (Number.isFinite(directTimestamp)) return directTimestamp;
+            const parts = String(campaign.created || '').split('.').map(Number);
+            if (parts.length === 3 && parts.every(Number.isFinite)) {
+                return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+            }
+            return 0;
         }
 
         function renderCampaignRows(tbodyId, items, archived) {
@@ -2816,6 +2977,8 @@
             document.getElementById('wz-duration').value = '15 минут';
             document.getElementById('wz-limit').value = '10';
             document.getElementById('wz-time-limit').value = '0';
+            document.getElementById('wz-show-result').value = 'no';
+            document.getElementById('wz-passing-score').value = '70';
             document.getElementById('wz-shuffle').value = 'yes';
             document.getElementById('wz-status').value = 'published';
             document.getElementById('wz-survey-enabled').value = 'no';
@@ -2850,6 +3013,8 @@
             document.getElementById('wz-duration').value = c.duration || '15 минут';
             document.getElementById('wz-limit').value = c.questionLimit || '10';
             document.getElementById('wz-time-limit').value = c.timeLimitMinutes || '0';
+            document.getElementById('wz-show-result').value = c.showResult ? 'yes' : 'no';
+            document.getElementById('wz-passing-score').value = Number.isFinite(Number(c.passingScore)) ? Number(c.passingScore) : 70;
             document.getElementById('wz-shuffle').value = c.shuffle || 'yes';
             document.getElementById('wz-status').value = c.status || 'published';
             document.getElementById('wz-survey-enabled').value = c.survey?.enabled ? 'yes' : 'no';
@@ -3376,6 +3541,8 @@
             const duration = document.getElementById('wz-duration').value.trim() || '15 минут';
             const limit = parseInt(document.getElementById('wz-limit').value) || 10;
             const timeLimitMinutes = parseInt(document.getElementById('wz-time-limit')?.value, 10) || 0;
+            const showResult = document.getElementById('wz-show-result')?.value === 'yes';
+            const passingScore = Math.min(100, Math.max(0, parseInt(document.getElementById('wz-passing-score')?.value, 10) || 0));
             const shuffleVal = document.getElementById('wz-shuffle').value;
             const status = document.getElementById('wz-status')?.value || 'published';
             const now = new Date().toISOString();
@@ -3402,6 +3569,8 @@
                     campaignObj.duration = duration;
                     campaignObj.questionLimit = limit;
                     campaignObj.timeLimitMinutes = timeLimitMinutes;
+                    campaignObj.showResult = showResult;
+                    campaignObj.passingScore = passingScore;
                     campaignObj.shuffle = shuffleVal;
                     campaignObj.status = status;
                     campaignObj.updatedAt = now;
@@ -3418,6 +3587,8 @@
                     duration: duration,
                     questionLimit: limit,
                     timeLimitMinutes: timeLimitMinutes,
+                    showResult,
+                    passingScore,
                     shuffle: shuffleVal,
                     status,
                     competencies: selectedComps,
@@ -3889,6 +4060,8 @@
                     }
                     if (match) {
                         match.timeLimitMinutes = parseInt(urlParams.get('timeLimit'), 10) || match.timeLimitMinutes || 0;
+                        if (urlParams.has('showResult')) match.showResult = urlParams.get('showResult') === 'yes';
+                        if (urlParams.has('passingScore')) match.passingScore = Math.min(100, Math.max(0, parseInt(urlParams.get('passingScore'), 10) || 0));
                         match.candidateFieldsSchemaVersion = parseInt(urlParams.get('fieldSchema'), 10) || match.candidateFieldsSchemaVersion;
                         if (embeddedSurvey) match.survey = embeddedSurvey;
                     }
@@ -3915,6 +4088,8 @@
                             badge: urlParams.get('badge') || 'PRO',
                             questionLimit: parseInt(urlParams.get('limit')) || 10,
                             timeLimitMinutes: parseInt(urlParams.get('timeLimit'), 10) || 0,
+                            showResult: urlParams.get('showResult') === 'yes',
+                            passingScore: urlParams.has('passingScore') ? Math.min(100, Math.max(0, parseInt(urlParams.get('passingScore'), 10) || 0)) : 70,
                             shuffle: urlParams.get('shuffle') || 'yes',
                             competencies: compsStr ? compsStr.split(',') : [],
                             localQuestions: embeddedQuestions,
@@ -3984,6 +4159,7 @@
         window.nextQuestion = nextQuestion;
         window.resetTestingFlow = resetTestingFlow;
         window.exportCandidatesToExcel = exportCandidatesToExcel;
+        window.exportDetailedAnswersToExcel = exportDetailedAnswersToExcel;
         window.exportSurveyResultsToExcel = exportSurveyResultsToExcel;
         window.submitSurvey = submitSurvey;
         window.setSurveyAnswer = setSurveyAnswer;
@@ -4039,6 +4215,9 @@
         async function initApp() {
             const wizardModal = document.getElementById('test-wizard-modal');
             document.getElementById('admin-filter-campaign-select')?.addEventListener('change', renderCandidatesListTab);
+            document.getElementById('admin-filter-candidate-name')?.addEventListener('input', renderCandidatesListTab);
+            document.getElementById('admin-results-date-sort')?.addEventListener('change', renderCandidatesListTab);
+            document.getElementById('admin-campaigns-date-sort')?.addEventListener('change', renderAdminCampaignsTab);
             wizardModal?.addEventListener('input', () => { wizardIsDirty = true; });
             wizardModal?.addEventListener('change', () => { wizardIsDirty = true; });
             window.addEventListener('beforeunload', event => {
