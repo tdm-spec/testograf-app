@@ -1142,11 +1142,14 @@
         let testTimerInterval = null;
         let testTimerSeconds = 0;
         let testTimerRemainingSeconds = null;
+        let testStartedAt = null;
+        let testDeadlineAt = null;
         let activeChartInstance = null;
         let shortLoadedCampaignId = null;
         let publicLinkedCampaign = null;
         let sharedFirebaseConfig = null;
         const candidateSavePromises = new Map();
+        const TEST_DRAFT_PREFIX = 'testograf_progress_v1:';
 
         // Переменные для мастера создания теста (Wizard State)
         let wizardStep = 1;
@@ -1157,6 +1160,99 @@
         let wizardIsDirty = false;
 
         /* ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==================== */
+        function getActiveTestDraftKey() {
+            const testId = activeCampaign?.id || new URLSearchParams(window.location.hash.slice(1)).get('testId') || 'default_all';
+            return `${TEST_DRAFT_PREFIX}${testId}`;
+        }
+
+        function saveTestDraft(view = 'test') {
+            if (!currentCandidate?.id) return;
+            const draft = {
+                schemaVersion: 1,
+                testId: activeCampaign?.id || currentCandidate.testId || 'default_all',
+                savedAt: Date.now(),
+                view,
+                candidate: currentCandidate,
+                answers: answersState,
+                questionIds: activeCampaignQuestions.map(question => String(question.id)),
+                currentQuestionIdx,
+                surveyAnswers: surveyAnswersState,
+                surveyPhase: currentSurveyPhase,
+                startedAt: testStartedAt,
+                deadlineAt: testDeadlineAt,
+                elapsedSeconds: testTimerSeconds
+            };
+            try {
+                localStorage.setItem(getActiveTestDraftKey(), JSON.stringify(draft));
+            } catch (error) {
+                console.warn('Не удалось сохранить прогресс теста:', error);
+            }
+        }
+
+        function clearTestDraft() {
+            try { localStorage.removeItem(getActiveTestDraftKey()); } catch (error) {}
+        }
+
+        function getSavedTestDraft() {
+            try {
+                const draft = JSON.parse(localStorage.getItem(getActiveTestDraftKey()) || 'null');
+                if (!draft?.candidate?.id || draft.testId !== (activeCampaign?.id || 'default_all')) return null;
+                return draft;
+            } catch (error) {
+                clearTestDraft();
+                return null;
+            }
+        }
+
+        function restoreQuestionOrder(questionIds = []) {
+            if (!questionIds.length) return false;
+            const pool = [...(activeCampaign?.localQuestions || []), ...questions, ...activeCampaignQuestions];
+            const byId = new Map(pool.map(question => [String(question.id), question]));
+            const restored = questionIds.map(id => byId.get(String(id))).filter(Boolean);
+            if (restored.length !== questionIds.length) return false;
+            activeCampaignQuestions = restored;
+            return true;
+        }
+
+        function tryRestoreTestDraft() {
+            const draft = getSavedTestDraft();
+            if (!draft) return false;
+            if (!window.confirm('Найден незавершённый тест. Продолжить с сохранённого места?')) {
+                clearTestDraft();
+                return false;
+            }
+            if (!restoreQuestionOrder(draft.questionIds)) {
+                clearTestDraft();
+                showToast('Состав теста изменился. Начните прохождение заново.', 'info');
+                return false;
+            }
+            currentCandidate = draft.candidate;
+            answersState = draft.answers || {};
+            currentQuestionIdx = Math.min(Math.max(Number(draft.currentQuestionIdx) || 0, 0), activeCampaignQuestions.length - 1);
+            surveyAnswersState = draft.surveyAnswers || {};
+            currentSurveyPhase = draft.surveyPhase || null;
+            testStartedAt = Number(draft.startedAt) || Date.now() - (Number(draft.elapsedSeconds) || 0) * 1000;
+            testDeadlineAt = Number(draft.deadlineAt) || null;
+            testTimerSeconds = Number(draft.elapsedSeconds) || 0;
+
+            if (draft.view === 'survey' && activeCampaign?.survey?.enabled) {
+                const intro = document.getElementById('survey-intro-text');
+                if (intro) intro.textContent = currentSurveyPhase === 'before'
+                    ? 'Перед началом теста нужно заполнить дополнительную анкету.'
+                    : 'Тест завершен. Перед отправкой результата нужно заполнить дополнительную анкету.';
+                const skipBtn = document.getElementById('survey-skip-btn');
+                if (skipBtn) skipBtn.classList.toggle('hidden', activeCampaign.survey.required !== false);
+                renderSurveyQuestions();
+                switchView('survey');
+            } else {
+                renderQuestion();
+                startTestTimer(true);
+                switchView('test-interface');
+            }
+            showToast('Прогресс теста восстановлен.', 'info');
+            return true;
+        }
+
         function shuffleArray(array) {
             let shuffled = [...array];
             let curId = shuffled.length;
@@ -2080,23 +2176,42 @@
         function startActualTest() {
             currentQuestionIdx = 0;
             answersState = {};
+            testStartedAt = Date.now();
+            testDeadlineAt = activeCampaign?.timeLimitMinutes
+                ? testStartedAt + activeCampaign.timeLimitMinutes * 60 * 1000
+                : null;
             renderQuestion();
-            startTestTimer();
+            startTestTimer(false);
             switchView('test-interface');
+            saveTestDraft('test');
         }
 
-        function startTestTimer() {
-            testTimerSeconds = 0;
-            testTimerRemainingSeconds = activeCampaign?.timeLimitMinutes ? activeCampaign.timeLimitMinutes * 60 : null;
+        function startTestTimer(resume = false) {
+            if (!resume) testTimerSeconds = 0;
+            if (!testStartedAt) testStartedAt = Date.now() - testTimerSeconds * 1000;
+            if (activeCampaign?.timeLimitMinutes && !testDeadlineAt) {
+                testDeadlineAt = testStartedAt + activeCampaign.timeLimitMinutes * 60 * 1000;
+            }
+            testTimerSeconds = Math.max(0, Math.floor((Date.now() - testStartedAt) / 1000));
+            testTimerRemainingSeconds = testDeadlineAt !== null
+                ? Math.max(0, Math.ceil((testDeadlineAt - Date.now()) / 1000))
+                : null;
             clearInterval(testTimerInterval);
             const timerEl = document.getElementById('test-timer');
             const timerLabelEl = document.getElementById('test-timer-label');
             if (timerLabelEl) timerLabelEl.textContent = testTimerRemainingSeconds !== null ? 'Осталось времени' : 'Прошло времени';
-            if (timerEl) timerEl.textContent = testTimerRemainingSeconds ? formatSeconds(testTimerRemainingSeconds) : '00:00';
+            if (timerEl) timerEl.textContent = formatSeconds(testTimerRemainingSeconds !== null ? testTimerRemainingSeconds : testTimerSeconds);
+            if (testTimerRemainingSeconds === 0) {
+                setTimeout(() => {
+                    alert('Время тестирования закончилось. Ответы будут сохранены автоматически.');
+                    finishTesting('time');
+                }, 0);
+                return;
+            }
             testTimerInterval = setInterval(() => {
-                testTimerSeconds++;
+                testTimerSeconds = Math.max(0, Math.floor((Date.now() - testStartedAt) / 1000));
                 if (testTimerRemainingSeconds !== null) {
-                    testTimerRemainingSeconds--;
+                    testTimerRemainingSeconds = Math.max(0, Math.ceil((testDeadlineAt - Date.now()) / 1000));
                     if (timerEl) timerEl.textContent = formatSeconds(Math.max(0, testTimerRemainingSeconds));
                     if (testTimerRemainingSeconds <= 0) {
                         clearInterval(testTimerInterval);
@@ -2106,6 +2221,7 @@
                 } else if (timerEl) {
                     timerEl.textContent = formatSeconds(testTimerSeconds);
                 }
+                if (testTimerSeconds % 5 === 0) saveTestDraft('test');
             }, 1000);
         }
 
@@ -2207,12 +2323,14 @@
             } else {
                 answersState[qId] = val;
             }
+            saveTestDraft('test');
             renderQuestion();
         }
 
         function previousQuestion() {
             if (currentQuestionIdx > 0) {
                 currentQuestionIdx--;
+                saveTestDraft('test');
                 renderQuestion();
             }
         }
@@ -2222,6 +2340,7 @@
                 finishTesting();
             } else {
                 currentQuestionIdx++;
+                saveTestDraft('test');
                 renderQuestion();
             }
         }
@@ -2327,10 +2446,12 @@
             if (skipBtn) skipBtn.classList.toggle('hidden', activeCampaign?.survey?.required !== false);
             renderSurveyQuestions();
             switchView('survey');
+            saveTestDraft('survey');
         }
 
         function setSurveyAnswer(questionId, value) {
             surveyAnswersState[questionId] = typeof value === 'string' ? value.trim() : value;
+            saveTestDraft('survey');
             renderSurveyQuestions();
         }
 
@@ -2339,6 +2460,7 @@
             surveyAnswersState[questionId] = checked
                 ? [...new Set([...current, value])]
                 : current.filter(item => item !== value);
+            saveTestDraft('survey');
             renderSurveyQuestions();
         }
 
@@ -2437,6 +2559,7 @@
                     if (receipt) receipt.textContent = '';
                     renderCandidateResultSummary(localCandidate);
                     showToast('Результат сохранён в локальном предпросмотре.', 'info');
+                    clearTestDraft();
                     return true;
                 }
                 const delays = [0, 600, 1500, 3000, 5000];
@@ -2457,6 +2580,7 @@
                         if (receipt) receipt.textContent = `Результат сохранён. Номер записи: ${confirmation.id}`;
                         renderCandidateResultSummary(syncedCandidate);
                         showToast("Результат подтверждён сервером и сохранён!");
+                        clearTestDraft();
                         return true;
                     } catch (error) {
                         console.error(`Ошибка сохранения результата, попытка ${attempt + 1}:`, error);
@@ -2559,6 +2683,14 @@
         }
 
         function resetTestingFlow() {
+            clearInterval(testTimerInterval);
+            clearTestDraft();
+            currentCandidate = null;
+            answersState = {};
+            surveyAnswersState = {};
+            currentSurveyPhase = null;
+            testStartedAt = null;
+            testDeadlineAt = null;
             document.getElementById('candidate-form')?.reset();
             toggleStaffCount(false);
             initCampaignConfiguration(); 
@@ -4220,8 +4352,25 @@
             document.getElementById('admin-campaigns-date-sort')?.addEventListener('change', renderAdminCampaignsTab);
             wizardModal?.addEventListener('input', () => { wizardIsDirty = true; });
             wizardModal?.addEventListener('change', () => { wizardIsDirty = true; });
+            const saveOpenProgress = () => {
+                const testView = document.getElementById('view-test-interface');
+                const surveyView = document.getElementById('view-survey');
+                if (testView && !testView.classList.contains('hidden')) saveTestDraft('test');
+                if (surveyView && !surveyView.classList.contains('hidden')) saveTestDraft('survey');
+            };
+            window.addEventListener('pagehide', saveOpenProgress);
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') saveOpenProgress();
+            });
             window.addEventListener('beforeunload', event => {
-                if (!wizardIsDirty || wizardModal?.classList.contains('hidden')) return;
+                const testView = document.getElementById('view-test-interface');
+                const surveyView = document.getElementById('view-survey');
+                const testIsOpen = Boolean(testView && !testView.classList.contains('hidden'));
+                const surveyIsOpen = Boolean(surveyView && !surveyView.classList.contains('hidden'));
+                const wizardIsOpen = wizardIsDirty && !wizardModal?.classList.contains('hidden');
+                if (testIsOpen) saveTestDraft('test');
+                if (surveyIsOpen) saveTestDraft('survey');
+                if (!testIsOpen && !surveyIsOpen && !wizardIsOpen) return;
                 event.preventDefault();
                 event.returnValue = '';
             });
@@ -4244,6 +4393,7 @@
             try { await initFirebaseSync(); } catch(e) { console.error(e); }
             try { initCampaignConfiguration(); } catch(e) {}
             try { switchView('candidate-reg'); } catch(e) {}
+            try { tryRestoreTestDraft(); } catch(e) { console.error('Не удалось восстановить прогресс:', e); }
             try { renderAdminDashboard(); } catch(e) {}
         }
 
